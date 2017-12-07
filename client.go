@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 
@@ -72,7 +71,6 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 	if client == nil {
 		client = http.DefaultClient
 	}
-	log.Println("The client is", client)
 	res, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return err
@@ -94,7 +92,6 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 
 // WithClient specifies the http.Client that requests will use.
 func WithClient(ctx context.Context, client *http.Client) context.Context {
-	log.Printf("%+v", ctx)
 	c, err := fromContext(ctx)
 	if err != nil {
 		// can't set it, fail silently
