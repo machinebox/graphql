@@ -10,8 +10,7 @@ Low-level GraphQL client for Go.
 * Simple error handling
 
 ```go
-ctx := context.Background()
-ctx := graphql.NewContext(ctx, "https://machinebox.io/graphql")
+// make a request
 req := graphql.NewRequest(`
     query ($key: String!) {
         items (id:$key) {
@@ -21,7 +20,15 @@ req := graphql.NewRequest(`
         }
     }
 `)
+
+// set any variables
 req.Var("key", "value")
+
+// get a context
+ctx := context.Background()
+ctx := graphql.NewContext(ctx, "https://machinebox.io/graphql")
+
+// run it and capture the response
 var respData ResponseStruct
 if err := req.Run(ctx, &respData); err != nil {
     log.Fatalln(err)
