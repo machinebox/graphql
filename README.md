@@ -3,9 +3,11 @@
 Low-level GraphQL client for Go.
 
 * Simple, familiar API
-* Respects context.Context cancallation
+* Respects `context.Context` cancallation
 * Build and execute any kind of GraphQL request
+* Use strong Go types for response data
 * Use variables and upload files
+* Simple error handling
 
 ```go
 ctx := context.Background()
