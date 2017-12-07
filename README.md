@@ -7,7 +7,8 @@ Low-level GraphQL client for Go.
 * Build and execute any kind of GraphQL request
 
 ```go
-ctx := graphql.NewContext(context.Background(), "https://machinebox.io/graphql")
+ctx := context.Background()
+ctx := graphql.NewContext(ctx, "https://machinebox.io/graphql")
 r := graphql.NewRequest(`
     query ($key: String!) {
         items (id:$key) {
