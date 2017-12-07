@@ -13,6 +13,28 @@ import (
 	"github.com/matryer/is"
 )
 
+func TestWithClient(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	testClient := &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			calls++
+			resp := &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(`{"data":{"key":"value"}}`)),
+			}
+			return resp, nil
+		}),
+	}
+
+	ctx := NewContext(context.Background(), "")
+	ctx = WithClient(ctx, testClient)
+
+	req := NewRequest(``)
+	req.Run(ctx, nil)
+
+	is.Equal(calls, 1) // calls
+}
+
 func TestDo(t *testing.T) {
 	is := is.New(t)
 	var calls int
@@ -170,4 +192,10 @@ func TestFile(t *testing.T) {
 	err := req.Run(ctx, nil)
 	is.NoErr(err)
 
+}
+
+type roundTripperFunc func(req *http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 
@@ -67,7 +68,12 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Accept", "application/json")
-	res, err := ctxhttp.Do(ctx, c.httpclient, req)
+	client := c.httpclient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	log.Println("The client is", client)
+	res, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return err
 	}
@@ -84,6 +90,18 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 		return graphResponse.Errors[0]
 	}
 	return nil
+}
+
+// WithClient specifies the http.Client that requests will use.
+func WithClient(ctx context.Context, client *http.Client) context.Context {
+	log.Printf("%+v", ctx)
+	c, err := fromContext(ctx)
+	if err != nil {
+		// can't set it, fail silently
+		return ctx
+	}
+	c.httpclient = client
+	return ctx
 }
 
 type graphErr struct {
@@ -111,9 +129,9 @@ func NewRequest(q string) *Request {
 
 // Run executes the query and unmarshals the response into response.
 func (req *Request) Run(ctx context.Context, response interface{}) error {
-	client := fromContext(ctx)
-	if client == nil {
-		return errors.New("inappropriate context")
+	client, err := fromContext(ctx)
+	if err != nil {
+		return err
 	}
 	return client.Do(ctx, req, response)
 }

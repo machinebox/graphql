@@ -18,10 +18,12 @@ func TestNewContext(t *testing.T) {
 	endpoint := "https://server.com/graphql"
 	ctx = NewContext(ctx, endpoint)
 
-	vclient := fromContext(ctx)
+	vclient, err := fromContext(ctx)
+	is.NoErr(err)
 	is.Equal(vclient.endpoint, endpoint)
 
-	vclient2 := fromContext(ctx)
+	vclient2, err := fromContext(ctx)
+	is.NoErr(err)
 	is.Equal(vclient, vclient2)
 
 	is.Equal(ctx.Value(testContextKey), true) // normal context stuff should work
