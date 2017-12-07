@@ -12,8 +12,8 @@
 //         }
 //     `)
 //     r.Var("key", "value")
-//     var res ResponseStruct
-//     if err := r.Run(ctx, &resp); err != nil {
+//     var respData ResponseStruct
+//     if err := r.Run(ctx, &respData); err != nil {
 //         log.Fatalln(err)
 //     }
 package graphql

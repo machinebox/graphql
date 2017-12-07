@@ -20,8 +20,8 @@ req := graphql.NewRequest(`
     }
 `)
 req.Var("key", "value")
-var res ResponseStruct
-if err := req.Run(ctx, &resp); err != nil {
+var respData ResponseStruct
+if err := req.Run(ctx, &respData); err != nil {
     log.Fatalln(err)
 }
 ```
