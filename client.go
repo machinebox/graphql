@@ -127,7 +127,11 @@ func NewRequest(q string) *Request {
 	return req
 }
 
-// Run executes the query and unmarshals the response into response.
+// Run executes the query and unmarshals the response from the data field
+// into the response object.
+// Pass in a nil response object to skip response parsing.
+// If the request fails or the server returns an error, the first error
+// will be returned. Use IsGraphQLErr to determine which it was.
 func (req *Request) Run(ctx context.Context, response interface{}) error {
 	client, err := fromContext(ctx)
 	if err != nil {
@@ -150,6 +154,13 @@ func (req *Request) File(filename string, r io.Reader) {
 		Name: filename,
 		R:    r,
 	})
+}
+
+// IsGraphQLErr gets whether the error is a remote GraphQL
+// server error or not.
+func IsGraphQLErr(err error) bool {
+	_, ok := err.(graphErr)
+	return ok
 }
 
 // file represents a file to upload.
