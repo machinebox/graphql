@@ -1,8 +1,6 @@
 // Package graphql provides a low level GraphQL client.
-//
-//  ctx := context.Background()
-//  ctx = graphql.NewContext(ctx, "https://machinebox.io/graphql")
-//  r := graphql.NewRequest(`
+//  // make a request
+//  req := graphql.NewRequest(`
 //      query ($key: String!) {
 //          items (id:$key) {
 //              field1
@@ -11,9 +9,17 @@
 //          }
 //      }
 //  `)
-//  r.Var("key", "value")
+//
+//  // set any variables
+//  req.Var("key", "value")
+//
+//  // get a context
+//  ctx := context.Background()
+//  ctx := graphql.NewContext(ctx, "https://machinebox.io/graphql")
+//
+//  // run it and capture the response
 //  var respData ResponseStruct
-//  if err := r.Run(ctx, &respData); err != nil {
+//  if err := req.Run(ctx, &respData); err != nil {
 //      log.Fatalln(err)
 //  }
 package graphql
