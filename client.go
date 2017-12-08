@@ -153,13 +153,6 @@ func (req *Request) File(filename string, r io.Reader) {
 	})
 }
 
-// IsGraphQLErr gets whether the error is a remote GraphQL
-// server error or not.
-func IsGraphQLErr(err error) bool {
-	_, ok := err.(graphErr)
-	return ok
-}
-
 // file represents a file to upload.
 type file struct {
 	Name string
