@@ -1,4 +1,4 @@
-# graphql
+# graphql [![GoDoc](https://godoc.org/github.com/machinebox/graphql?status.png)](http://godoc.org/github.com/machinebox/graphql)
 
 Low-level GraphQL client for Go.
 
