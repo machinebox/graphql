@@ -15,8 +15,7 @@ import (
 
 // Client accesses a GraphQL API.
 type client struct {
-	endpoint   string
-	httpclient *http.Client
+	endpoint string
 }
 
 // Do executes a query request and returns the response.
@@ -67,8 +66,8 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Accept", "application/json")
-	client := c.httpclient
-	if client == nil {
+	client, ok := ctx.Value(httpclientContextKey).(*http.Client)
+	if !ok {
 		client = http.DefaultClient
 	}
 	res, err := ctxhttp.Do(ctx, client, req)
@@ -92,13 +91,7 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 
 // WithClient specifies the http.Client that requests will use.
 func WithClient(ctx context.Context, client *http.Client) context.Context {
-	c, err := fromContext(ctx)
-	if err != nil {
-		// can't set it, fail silently
-		return ctx
-	}
-	c.httpclient = client
-	return ctx
+	return context.WithValue(ctx, httpclientContextKey, client)
 }
 
 type graphErr struct {

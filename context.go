@@ -13,8 +13,13 @@ var errInappropriateContext = errors.New("inappropriate context")
 // contextKey provides unique keys for context values.
 type contextKey string
 
-// clientContextKey is the context value key for the Client.
-var clientContextKey = contextKey("graphql client context")
+var (
+	// clientContextKey is the context value key for the Client.
+	clientContextKey = contextKey("graphql client context key")
+	// httpclientContextKey is the context value key for the HTTP client to
+	// use.
+	httpclientContextKey = contextKey("graphql http client context key")
+)
 
 // fromContext gets the client from the specified
 // Context.

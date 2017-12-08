@@ -52,9 +52,6 @@ func TestDo(t *testing.T) {
 	defer srv.Close()
 	c := &client{
 		endpoint: srv.URL,
-		httpclient: &http.Client{
-			Timeout: 1 * time.Second,
-		},
 	}
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
@@ -83,9 +80,6 @@ func TestDoErr(t *testing.T) {
 	defer srv.Close()
 	c := &client{
 		endpoint: srv.URL,
-		httpclient: &http.Client{
-			Timeout: 1 * time.Second,
-		},
 	}
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
@@ -113,9 +107,6 @@ func TestDoNoResponse(t *testing.T) {
 	defer srv.Close()
 	c := &client{
 		endpoint: srv.URL,
-		httpclient: &http.Client{
-			Timeout: 1 * time.Second,
-		},
 	}
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
