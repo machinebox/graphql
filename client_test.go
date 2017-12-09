@@ -27,7 +27,7 @@ func TestWithClient(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	client, err := NewClient(ctx, "", WithHTTPClient(testClient))
+	client, err := NewClient("", WithHTTPClient(testClient))
 	is.NoErr(err)
 
 	req := NewRequest(``)
@@ -53,7 +53,7 @@ func TestDo(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client, err := NewClient(ctx, srv.URL)
+	client, err := NewClient(srv.URL)
 	is.NoErr(err)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
@@ -82,7 +82,7 @@ func TestDoErr(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client, err := NewClient(ctx, srv.URL)
+	client, err := NewClient(srv.URL)
 	is.NoErr(err)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
@@ -110,7 +110,7 @@ func TestDoNoResponse(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client, err := NewClient(ctx, srv.URL)
+	client, err := NewClient(srv.URL)
 	is.NoErr(err)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
@@ -136,7 +136,7 @@ func TestQuery(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client, err := NewClient(ctx, srv.URL)
+	client, err := NewClient(srv.URL)
 	is.NoErr(err)
 
 	req := NewRequest("query {}")
@@ -180,7 +180,7 @@ func TestFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client, err := NewClient(ctx, srv.URL)
+	client, err := NewClient(srv.URL)
 	is.NoErr(err)
 
 	f := strings.NewReader(`This is a file`)

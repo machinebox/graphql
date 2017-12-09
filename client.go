@@ -18,16 +18,13 @@ type Client struct {
 	httpClient *http.Client
 }
 
-type ClientOption interface {
-	apply(*Client)
-}
-
-func NewClient(ctx context.Context, endpoint string, opts ...ClientOption) (*Client, error) {
+// NewClient makes a new Client capable of making GraphQL requests.
+func NewClient(endpoint string, opts ...ClientOption) (*Client, error) {
 	c := &Client{
 		endpoint: endpoint,
 	}
-	for _, o := range opts {
-		o.apply(c)
+	for _, optionFunc := range opts {
+		optionFunc(c)
 	}
 	if c.httpClient == nil {
 		c.httpClient = http.DefaultClient
@@ -109,18 +106,16 @@ func (c *Client) Run(ctx context.Context, request *Request, response interface{}
 	return nil
 }
 
-type httpClientOption struct {
-	hc *http.Client
+// WithHTTPClient specifies the underlying http.Client to use when
+// making requests.
+func WithHTTPClient(httpclient *http.Client) ClientOption {
+	return ClientOption(func(client *Client) {
+		client.httpClient = httpclient
+	})
 }
 
-func (o httpClientOption) apply(c *Client) {
-	c.httpClient = o.hc
-}
-
-// WithHTTPClient specifies the http.Client that requests will use.
-func WithHTTPClient(client *http.Client) ClientOption {
-	return httpClientOption{client}
-}
+// ClientOption is a function that modifies the client in some way.
+type ClientOption func(*Client)
 
 type graphErr struct {
 	Message string
