@@ -162,7 +162,6 @@ func TestFile(t *testing.T) {
 		is.NoErr(err)
 		defer file.Close()
 		is.Equal(header.Filename, "filename.txt")
-		is.Equal(header.Size, int64(14))
 
 		b, err := ioutil.ReadAll(file)
 		is.NoErr(err)
