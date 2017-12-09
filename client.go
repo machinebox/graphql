@@ -10,18 +10,41 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/context/ctxhttp"
 )
 
-// Client accesses a GraphQL API.
-type client struct {
-	endpoint string
+// Client is a client for accessing a GraphQL dataset.
+type Client struct {
+	endpoint   string
+	httpClient *http.Client
 }
 
-// Do executes a query request and returns the response.
-func (c *client) Do(ctx context.Context, request *Request, response interface{}) error {
-	if err := ctx.Err(); err != nil {
-		return err
+type ClientOption interface {
+	apply(*Client)
+}
+
+func NewClient(ctx context.Context, endpoint string, opts ...ClientOption) (*Client, error) {
+	c := &Client{
+		endpoint: endpoint,
+	}
+	for _, o := range opts {
+		o.apply(c)
+	}
+	if c.httpClient == nil {
+		c.httpClient = http.DefaultClient
+	}
+	return c, nil
+}
+
+// Run executes the query and unmarshals the response from the data field
+// into the response object.
+// Pass in a nil response object to skip response parsing.
+// If the request fails or the server returns an error, the first error
+// will be returned. Use IsGraphQLErr to determine which it was.
+func (c *Client) Run(ctx context.Context, request *Request, response interface{}) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
@@ -66,11 +89,8 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Accept", "application/json")
-	client, ok := ctx.Value(httpclientContextKey).(*http.Client)
-	if !ok {
-		client = http.DefaultClient
-	}
-	res, err := ctxhttp.Do(ctx, client, req)
+	req = req.WithContext(ctx)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -89,9 +109,17 @@ func (c *client) Do(ctx context.Context, request *Request, response interface{})
 	return nil
 }
 
-// WithClient specifies the http.Client that requests will use.
-func WithClient(ctx context.Context, client *http.Client) context.Context {
-	return context.WithValue(ctx, httpclientContextKey, client)
+type httpClientOption struct {
+	hc *http.Client
+}
+
+func (o httpClientOption) apply(c *Client) {
+	c.httpClient = o.hc
+}
+
+// WithHTTPClient specifies the http.Client that requests will use.
+func WithHTTPClient(client *http.Client) ClientOption {
+	return httpClientOption{client}
 }
 
 type graphErr struct {
@@ -115,19 +143,6 @@ func NewRequest(q string) *Request {
 		q: q,
 	}
 	return req
-}
-
-// Run executes the query and unmarshals the response from the data field
-// into the response object.
-// Pass in a nil response object to skip response parsing.
-// If the request fails or the server returns an error, the first error
-// will be returned. Use IsGraphQLErr to determine which it was.
-func (req *Request) Run(ctx context.Context, response interface{}) error {
-	client, err := fromContext(ctx)
-	if err != nil {
-		return err
-	}
-	return client.Do(ctx, req, response)
 }
 
 // Var sets a variable.
