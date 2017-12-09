@@ -1,11 +1,7 @@
 // Package graphql provides a low level GraphQL client.
 //
 //  // create a client (safe to share across requests)
-//  ctx := context.Background()
-//  client, err := graphql.NewClient(ctx, "https://machinebox.io/graphql")
-//  if err != nil {
-//      log.Fatal(err)
-//  }
+//  client := graphql.NewClient("https://machinebox.io/graphql")
 //
 //  // make a request
 //  req := graphql.NewRequest(`
@@ -26,4 +22,10 @@
 //  if err := client.Run(ctx, req, &respData); err != nil {
 //      log.Fatal(err)
 //  }
+//
+// Specify client
+//
+// To specify your own http.Client, use the WithHTTPClient option:
+//  httpclient := &http.Client{}
+//  client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
 package graphql

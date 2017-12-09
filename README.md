@@ -11,11 +11,7 @@ Low-level GraphQL client for Go.
 
 ```go
 // create a client (safe to share across requests)
-ctx := context.Background()
-client, err := graphql.NewClient(ctx, "https://machinebox.io/graphql")
-if err != nil {
-    log.Fatal(err)
-}
+client := graphql.NewClient("https://machinebox.io/graphql")
 
 // make a request
 req := graphql.NewRequest(`
@@ -37,6 +33,8 @@ if err := client.Run(ctx, req, &respData); err != nil {
     log.Fatal(err)
 }
 ```
+
+For more information, [read the godoc package documentation](http://godoc.org/github.com/machinebox/graphql).
 
 ## Thanks
 
