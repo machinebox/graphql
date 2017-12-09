@@ -65,7 +65,7 @@ func NewClient(endpoint string, opts ...ClientOption) *Client {
 // into the response object.
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
-// will be returned. Use IsGraphQLErr to determine which it was.
+// will be returned.
 func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
 	select {
 	case <-ctx.Done():
