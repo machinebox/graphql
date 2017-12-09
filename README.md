@@ -3,7 +3,7 @@
 Low-level GraphQL client for Go.
 
 * Simple, familiar API
-* Respects `context.Context` timeouts and cancallation
+* Respects `context.Context` timeouts and cancellation
 * Build and execute any kind of GraphQL request
 * Use strong Go types for response data
 * Use variables and upload files
