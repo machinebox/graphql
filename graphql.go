@@ -67,7 +67,7 @@ func NewClient(endpoint string, opts ...ClientOption) *Client {
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
 // will be returned. Use IsGraphQLErr to determine which it was.
-func (c *Client) Run(ctx context.Context, request *Request, response interface{}) error {
+func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -75,29 +75,29 @@ func (c *Client) Run(ctx context.Context, request *Request, response interface{}
 	}
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
-	if err := writer.WriteField("query", request.q); err != nil {
+	if err := writer.WriteField("query", req.q); err != nil {
 		return errors.Wrap(err, "write query field")
 	}
-	if len(request.vars) > 0 {
+	if len(req.vars) > 0 {
 		variablesField, err := writer.CreateFormField("variables")
 		if err != nil {
 			return errors.Wrap(err, "create variables field")
 		}
-		if err := json.NewEncoder(variablesField).Encode(request.vars); err != nil {
+		if err := json.NewEncoder(variablesField).Encode(req.vars); err != nil {
 			return errors.Wrap(err, "encode variables")
 		}
 	}
-	for i := range request.files {
+	for i := range req.files {
 		filename := fmt.Sprintf("file-%d", i+1)
 		if i == 0 {
 			// just use "file" for the first one
 			filename = "file"
 		}
-		part, err := writer.CreateFormFile(filename, request.files[i].Name)
+		part, err := writer.CreateFormFile(filename, req.files[i].Name)
 		if err != nil {
 			return errors.Wrap(err, "create form file")
 		}
-		if _, err := io.Copy(part, request.files[i].R); err != nil {
+		if _, err := io.Copy(part, req.files[i].R); err != nil {
 			return errors.Wrap(err, "preparing file")
 		}
 	}
@@ -108,16 +108,16 @@ func (c *Client) Run(ctx context.Context, request *Request, response interface{}
 		Data   interface{}
 		Errors []graphErr
 	}{
-		Data: response,
+		Data: resp,
 	}
-	req, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
+	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Accept", "application/json")
-	req = req.WithContext(ctx)
-	res, err := c.httpClient.Do(req)
+	r.Header.Set("Content-Type", writer.FormDataContentType())
+	r.Header.Set("Accept", "application/json")
+	r = r.WithContext(ctx)
+	res, err := c.httpClient.Do(r)
 	if err != nil {
 		return err
 	}
