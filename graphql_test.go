@@ -174,14 +174,10 @@ func TestFile(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-
 	client := NewClient(srv.URL)
-
 	f := strings.NewReader(`This is a file`)
-
 	req := NewRequest("query {}")
-	req.File("filename.txt", f)
-
+	req.File("file", "filename.txt", f)
 	err := client.Run(ctx, req, nil)
 	is.NoErr(err)
 }

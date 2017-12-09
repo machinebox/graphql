@@ -34,7 +34,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -88,12 +87,7 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 		}
 	}
 	for i := range req.files {
-		filename := fmt.Sprintf("file-%d", i+1)
-		if i == 0 {
-			// just use "file" for the first one
-			filename = "file"
-		}
-		part, err := writer.CreateFormFile(filename, req.files[i].Name)
+		part, err := writer.CreateFormFile(req.files[i].Field, req.files[i].Name)
 		if err != nil {
 			return errors.Wrap(err, "create form file")
 		}
@@ -181,15 +175,17 @@ func (req *Request) Var(key string, value interface{}) {
 }
 
 // File sets a file to upload.
-func (req *Request) File(filename string, r io.Reader) {
+func (req *Request) File(fieldname, filename string, r io.Reader) {
 	req.files = append(req.files, file{
-		Name: filename,
-		R:    r,
+		Field: fieldname,
+		Name:  filename,
+		R:     r,
 	})
 }
 
 // file represents a file to upload.
 type file struct {
-	Name string
-	R    io.Reader
+	Field string
+	Name  string
+	R     io.Reader
 }
