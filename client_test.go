@@ -27,8 +27,7 @@ func TestWithClient(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	client, err := NewClient("", WithHTTPClient(testClient))
-	is.NoErr(err)
+	client := NewClient("", WithHTTPClient(testClient))
 
 	req := NewRequest(``)
 	client.Run(ctx, req, nil)
@@ -53,13 +52,12 @@ func TestDo(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client, err := NewClient(srv.URL)
-	is.NoErr(err)
+	client := NewClient(srv.URL)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err = client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
@@ -82,13 +80,12 @@ func TestDoErr(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client, err := NewClient(srv.URL)
-	is.NoErr(err)
+	client := NewClient(srv.URL)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err = client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.True(err != nil)
 	is.Equal(err.Error(), "graphql: Something went wrong")
 }
@@ -110,12 +107,11 @@ func TestDoNoResponse(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client, err := NewClient(srv.URL)
-	is.NoErr(err)
+	client := NewClient(srv.URL)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
-	err = client.Run(ctx, &Request{q: "query {}"}, nil)
+	err := client.Run(ctx, &Request{q: "query {}"}, nil)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 }
@@ -136,8 +132,7 @@ func TestQuery(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client, err := NewClient(srv.URL)
-	is.NoErr(err)
+	client := NewClient(srv.URL)
 
 	req := NewRequest("query {}")
 	req.Var("username", "matryer")
@@ -149,7 +144,7 @@ func TestQuery(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err = client.Run(ctx, req, &resp)
+	err := client.Run(ctx, req, &resp)
 	is.NoErr(err)
 	is.Equal(calls, 1)
 
@@ -180,15 +175,14 @@ func TestFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client, err := NewClient(srv.URL)
-	is.NoErr(err)
+	client := NewClient(srv.URL)
 
 	f := strings.NewReader(`This is a file`)
 
 	req := NewRequest("query {}")
 	req.File("filename.txt", f)
 
-	err = client.Run(ctx, req, nil)
+	err := client.Run(ctx, req, nil)
 	is.NoErr(err)
 }
 

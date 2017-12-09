@@ -19,7 +19,7 @@ type Client struct {
 }
 
 // NewClient makes a new Client capable of making GraphQL requests.
-func NewClient(endpoint string, opts ...ClientOption) (*Client, error) {
+func NewClient(endpoint string, opts ...ClientOption) *Client {
 	c := &Client{
 		endpoint: endpoint,
 	}
@@ -29,7 +29,7 @@ func NewClient(endpoint string, opts ...ClientOption) (*Client, error) {
 	if c.httpClient == nil {
 		c.httpClient = http.DefaultClient
 	}
-	return c, nil
+	return c
 }
 
 // Run executes the query and unmarshals the response from the data field
