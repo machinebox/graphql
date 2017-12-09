@@ -108,13 +108,15 @@ func (c *Client) Run(ctx context.Context, request *Request, response interface{}
 
 // WithHTTPClient specifies the underlying http.Client to use when
 // making requests.
+//  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
 func WithHTTPClient(httpclient *http.Client) ClientOption {
 	return ClientOption(func(client *Client) {
 		client.httpClient = httpclient
 	})
 }
 
-// ClientOption is a function that modifies the client in some way.
+// ClientOption are functions that are passed into NewClient to
+// modify the behaviour of the Client.
 type ClientOption func(*Client)
 
 type graphErr struct {
