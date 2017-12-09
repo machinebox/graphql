@@ -34,7 +34,7 @@ if err := client.Run(ctx, req, &respData); err != nil {
 }
 ```
 
-For more information, [read the godoc package documentation](http://godoc.org/github.com/machinebox/graphql).
+For more information, [read the godoc package documentation](http://godoc.org/github.com/machinebox/graphql) or the [blog post](https://blog.machinebox.io/a-graphql-client-library-for-go-5bffd0455878).
 
 ## Thanks
 
