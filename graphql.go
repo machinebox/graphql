@@ -98,12 +98,11 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if err := writer.Close(); err != nil {
 		return errors.Wrap(err, "close writer")
 	}
-	var graphResponse = struct {
-		Data   interface{}
-		Errors []graphErr
-	}{
+
+	gr := &graphResponse{
 		Data: resp,
 	}
+
 	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
 	if err != nil {
 		return err
@@ -120,12 +119,12 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if _, err := io.Copy(&buf, res.Body); err != nil {
 		return errors.Wrap(err, "reading body")
 	}
-	if err := json.NewDecoder(&buf).Decode(&graphResponse); err != nil {
+	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		return errors.Wrap(err, "decoding response")
 	}
-	if len(graphResponse.Errors) > 0 {
+	if len(gr.Errors) > 0 {
 		// return first error
-		return graphResponse.Errors[0]
+		return gr.Errors[0]
 	}
 	return nil
 }
@@ -149,6 +148,11 @@ type graphErr struct {
 
 func (e graphErr) Error() string {
 	return "graphql: " + e.Message
+}
+
+type graphResponse struct {
+	Data   interface{}
+	Errors []graphErr
 }
 
 // Request is a GraphQL request.
