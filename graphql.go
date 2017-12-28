@@ -106,7 +106,7 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if err := writer.Close(); err != nil {
 		return errors.Wrap(err, "close writer")
 	}
-	c.logf(">> vars:%+v files:%d query:%q", req.vars, len(req.files), req.q)
+	c.logf(">> vars:%+v files:%d query:%s", req.vars, len(req.files), req.q)
 	var graphResponse = struct {
 		Data   interface{}
 		Errors []graphErr
