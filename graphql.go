@@ -34,6 +34,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -45,12 +46,15 @@ import (
 type Client struct {
 	endpoint   string
 	httpClient *http.Client
+
+	Log func(s string)
 }
 
 // NewClient makes a new Client capable of making GraphQL requests.
 func NewClient(endpoint string, opts ...ClientOption) *Client {
 	c := &Client{
 		endpoint: endpoint,
+		Log:      func(string) {},
 	}
 	for _, optionFunc := range opts {
 		optionFunc(c)
@@ -59,6 +63,10 @@ func NewClient(endpoint string, opts ...ClientOption) *Client {
 		c.httpClient = http.DefaultClient
 	}
 	return c
+}
+
+func (c *Client) logf(format string, args ...interface{}) {
+	c.Log(fmt.Sprintf(format, args...))
 }
 
 // Run executes the query and unmarshals the response from the data field
@@ -98,7 +106,7 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if err := writer.Close(); err != nil {
 		return errors.Wrap(err, "close writer")
 	}
-
+	c.logf(">> vars:%+v files:%d query:%s", req.vars, len(req.files), req.q)
 	gr := &graphResponse{
 		Data: resp,
 	}
@@ -119,6 +127,7 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if _, err := io.Copy(&buf, res.Body); err != nil {
 		return errors.Wrap(err, "reading body")
 	}
+	c.logf("<< %s", buf.String())
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		return errors.Wrap(err, "decoding response")
 	}
