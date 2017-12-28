@@ -47,6 +47,9 @@ type Client struct {
 	endpoint   string
 	httpClient *http.Client
 
+	// Log is called with various debug information.
+	// To log to standard out, use:
+	//  client.Log = func(s string) { log.Println(s) }
 	Log func(s string)
 }
 
