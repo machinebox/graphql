@@ -42,7 +42,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Client is a client for accessing a GraphQL dataset.
+// Client is a client for interacting with a GraphQL API.
 type Client struct {
 	endpoint   string
 	httpClient *http.Client
