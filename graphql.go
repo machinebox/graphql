@@ -88,12 +88,13 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if err := writer.WriteField("query", req.q); err != nil {
 		return errors.Wrap(err, "write query field")
 	}
+	var variablesBuf bytes.Buffer
 	if len(req.vars) > 0 {
 		variablesField, err := writer.CreateFormField("variables")
 		if err != nil {
 			return errors.Wrap(err, "create variables field")
 		}
-		if err := json.NewEncoder(variablesField).Encode(req.vars); err != nil {
+		if err := json.NewEncoder(io.MultiWriter(variablesField, &variablesBuf)).Encode(req.vars); err != nil {
 			return errors.Wrap(err, "encode variables")
 		}
 	}
@@ -109,11 +110,12 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if err := writer.Close(); err != nil {
 		return errors.Wrap(err, "close writer")
 	}
-	c.logf(">> vars:%+v files:%d query:%s", req.vars, len(req.files), req.q)
+	c.logf(">> variables: %s", variablesBuf.String())
+	c.logf(">> files: %d", len(req.files))
+	c.logf(">> query: %s", req.q)
 	gr := &graphResponse{
 		Data: resp,
 	}
-
 	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
 	if err != nil {
 		return err
