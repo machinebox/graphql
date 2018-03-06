@@ -10,6 +10,8 @@ Low-level GraphQL client for Go.
 * Simple error handling
 
 ```go
+import "context"
+
 // create a client (safe to share across requests)
 client := graphql.NewClient("https://machinebox.io/graphql")
 
@@ -26,6 +28,9 @@ req := graphql.NewRequest(`
 
 // set any variables
 req.Var("key", "value")
+
+// define a Context for the request
+ctx := context.Background()
 
 // run it and capture the response
 var respData ResponseStruct
