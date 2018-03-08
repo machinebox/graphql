@@ -9,6 +9,15 @@ Low-level GraphQL client for Go.
 * Use variables and upload files
 * Simple error handling
 
+## Installation
+Make sure you have a working Go environment. To install graphql, simply run:
+
+```
+$ go get github.com/machinebox/graphql
+```
+
+## Usage
+
 ```go
 import "context"
 
@@ -28,6 +37,9 @@ req := graphql.NewRequest(`
 
 // set any variables
 req.Var("key", "value")
+
+// set header fields
+req.Header.Set("Cache-Control", "no-cache")
 
 // define a Context for the request
 ctx := context.Background()

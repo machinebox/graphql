@@ -178,9 +178,29 @@ type graphResponse struct {
 
 // Request is a GraphQL request.
 type Request struct {
-	q      string
-	vars   map[string]interface{}
-	files  []file
+	q     string
+	vars  map[string]interface{}
+	files []file
+
+	// Header mirrors the Header of a http.Request. It contains
+	// the request header fields either received
+	// by the server or to be sent by the client.
+	//
+	// If a server received a request with header lines,
+	//
+	//  Host: example.com
+	//  accept-encoding: gzip, deflate
+	//  Accept-Language: en-us
+	//  fOO: Bar
+	//  foo: two
+	//
+	// then
+	//
+	//  Header = map[string][]string{
+	//    "Accept-Encoding": {"gzip, deflate"},
+	//    "Accept-Language": {"en-us"},
+	//    "Foo": {"Bar", "two"},
+	//  }
 	Header Header
 }
 
