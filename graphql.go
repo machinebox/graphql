@@ -78,7 +78,7 @@ func (c *Client) logf(format string, args ...interface{}) {
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
 // will be returned.
-func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
+func (c *Client) Run(ctx context.Context, req *Request, resp interface{}, headers *http.Header) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -134,6 +134,7 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if err != nil {
 		return err
 	}
+	*headers = res.Header
 	defer res.Body.Close()
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, res.Body); err != nil {
