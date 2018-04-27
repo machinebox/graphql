@@ -38,6 +38,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 
 	"github.com/pkg/errors"
 )
@@ -77,7 +78,7 @@ func (c *Client) logf(format string, args ...interface{}) {
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
 // will be returned.
-func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
+func (c *Client) Run(ctx context.Context, req *Request, resp interface{}, headers *http.Header) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -122,11 +123,18 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	}
 	r.Header.Set("Content-Type", writer.FormDataContentType())
 	r.Header.Set("Accept", "application/json")
+	for key, values := range req.Header {
+		for _, value := range values {
+			r.Header.Add(key, value)
+		}
+	}
+	c.logf(">> headers: %v", r.Header)
 	r = r.WithContext(ctx)
 	res, err := c.httpClient.Do(r)
 	if err != nil {
 		return err
 	}
+	*headers = res.Header
 	defer res.Body.Close()
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, res.Body); err != nil {
@@ -174,12 +182,34 @@ type Request struct {
 	q     string
 	vars  map[string]interface{}
 	files []file
+
+	// Header mirrors the Header of a http.Request. It contains
+	// the request header fields either received
+	// by the server or to be sent by the client.
+	//
+	// If a server received a request with header lines,
+	//
+	//  Host: example.com
+	//  accept-encoding: gzip, deflate
+	//  Accept-Language: en-us
+	//  fOO: Bar
+	//  foo: two
+	//
+	// then
+	//
+	//  Header = map[string][]string{
+	//    "Accept-Encoding": {"gzip, deflate"},
+	//    "Accept-Language": {"en-us"},
+	//    "Foo": {"Bar", "two"},
+	//  }
+	Header Header
 }
 
 // NewRequest makes a new Request with the specified string.
 func NewRequest(q string) *Request {
 	req := &Request{
-		q: q,
+		q:      q,
+		Header: make(map[string][]string),
 	}
 	return req
 }
@@ -199,6 +229,37 @@ func (req *Request) File(fieldname, filename string, r io.Reader) {
 		Name:  filename,
 		R:     r,
 	})
+}
+
+// A Header represents the key-value pairs in an HTTP header.
+type Header map[string][]string
+
+// Add adds the key, value pair to the header.
+// It appends to any existing values associated with key.
+func (h Header) Add(key, value string) {
+	textproto.MIMEHeader(h).Add(key, value)
+}
+
+// Set sets the header entries associated with key to
+// the single element value. It replaces any existing
+// values associated with key.
+func (h Header) Set(key, value string) {
+	textproto.MIMEHeader(h).Set(key, value)
+}
+
+// Get gets the first value associated with the given key.
+// It is case insensitive; textproto.CanonicalMIMEHeaderKey is used
+// to canonicalize the provided key.
+// If there are no values associated with the key, Get returns "".
+// To access multiple values of a key, or to use non-canonical keys,
+// access the map directly.
+func (h Header) Get(key string) string {
+	return textproto.MIMEHeader(h).Get(key)
+}
+
+// Del deletes the values associated with key.
+func (h Header) Del(key string) {
+	textproto.MIMEHeader(h).Del(key)
 }
 
 // file represents a file to upload.
