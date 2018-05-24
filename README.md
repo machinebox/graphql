@@ -51,6 +51,15 @@ if err := client.Run(ctx, req, &respData); err != nil {
 }
 ```
 
+### File support via multipart form data
+
+By default, the package will send a JSON body. To enable the sending of files, you can opt to
+use multipart form data instead using the `UseMultipartForm` option when you create your `Client`:
+
+```
+client := graphql.NewClient("https://machinebox.io/graphql", graphql.UseMultipartForm())
+```
+
 For more information, [read the godoc package documentation](http://godoc.org/github.com/machinebox/graphql) or the [blog post](https://blog.machinebox.io/a-graphql-client-library-for-go-5bffd0455878).
 
 ## Thanks

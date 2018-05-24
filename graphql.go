@@ -38,15 +38,15 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/textproto"
 
 	"github.com/pkg/errors"
 )
 
 // Client is a client for interacting with a GraphQL API.
 type Client struct {
-	endpoint   string
-	httpClient *http.Client
+	endpoint         string
+	httpClient       *http.Client
+	useMultipartForm bool
 
 	// Log is called with various debug information.
 	// To log to standard out, use:
@@ -84,6 +84,66 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 		return ctx.Err()
 	default:
 	}
+	if len(req.files) > 0 && !c.useMultipartForm {
+		return errors.New("cannot send files with PostFields option")
+	}
+	if c.useMultipartForm {
+		return c.runWithPostFields(ctx, req, resp)
+	}
+	return c.runWithJSON(ctx, req, resp)
+}
+
+func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}) error {
+	var requestBody bytes.Buffer
+	requestBodyObj := struct {
+		Query     string                 `json:"query"`
+		Variables map[string]interface{} `json:"variables"`
+	}{
+		Query:     req.q,
+		Variables: req.vars,
+	}
+	if err := json.NewEncoder(&requestBody).Encode(requestBodyObj); err != nil {
+		return errors.Wrap(err, "encode body")
+	}
+	c.logf(">> variables: %v", req.vars)
+	c.logf(">> query: %s", req.q)
+	gr := &graphResponse{
+		Data: resp,
+	}
+	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
+	if err != nil {
+		return err
+	}
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
+	for key, values := range req.Header {
+		for _, value := range values {
+			r.Header.Add(key, value)
+		}
+	}
+	c.logf(">> headers: %v", r.Header)
+	r = r.WithContext(ctx)
+	res, err := c.httpClient.Do(r)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, res.Body); err != nil {
+		return errors.Wrap(err, "reading body")
+	}
+	c.logf("<< %s", buf.String())
+	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
+		return errors.Wrap(err, "decoding response")
+	}
+	if len(gr.Errors) > 0 {
+		// return first error
+		return gr.Errors[0]
+	}
+	return nil
+}
+
+func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp interface{}) error {
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
 	if err := writer.WriteField("query", req.q); err != nil {
@@ -122,7 +182,7 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 		return err
 	}
 	r.Header.Set("Content-Type", writer.FormDataContentType())
-	r.Header.Set("Accept", "application/json")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
 	for key, values := range req.Header {
 		for _, value := range values {
 			r.Header.Add(key, value)
@@ -154,9 +214,17 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 // making requests.
 //  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
 func WithHTTPClient(httpclient *http.Client) ClientOption {
-	return ClientOption(func(client *Client) {
+	return func(client *Client) {
 		client.httpClient = httpclient
-	})
+	}
+}
+
+// UseMultipartForm uses multipart/form-data and activates support for
+// files.
+func UseMultipartForm() ClientOption {
+	return func(client *Client) {
+		client.useMultipartForm = true
+	}
 }
 
 // ClientOption are functions that are passed into NewClient to
@@ -182,26 +250,9 @@ type Request struct {
 	vars  map[string]interface{}
 	files []file
 
-	// Header mirrors the Header of a http.Request. It contains
-	// the request header fields either received
-	// by the server or to be sent by the client.
-	//
-	// If a server received a request with header lines,
-	//
-	//  Host: example.com
-	//  accept-encoding: gzip, deflate
-	//  Accept-Language: en-us
-	//  fOO: Bar
-	//  foo: two
-	//
-	// then
-	//
-	//  Header = map[string][]string{
-	//    "Accept-Encoding": {"gzip, deflate"},
-	//    "Accept-Language": {"en-us"},
-	//    "Foo": {"Bar", "two"},
-	//  }
-	Header Header
+	// Header represent any request headers that will be set
+	// when the request is made.
+	Header http.Header
 }
 
 // NewRequest makes a new Request with the specified string.
@@ -222,43 +273,14 @@ func (req *Request) Var(key string, value interface{}) {
 }
 
 // File sets a file to upload.
+// Files are only supported with a Client that was created with
+// the UseMultipartForm option.
 func (req *Request) File(fieldname, filename string, r io.Reader) {
 	req.files = append(req.files, file{
 		Field: fieldname,
 		Name:  filename,
 		R:     r,
 	})
-}
-
-// A Header represents the key-value pairs in an HTTP header.
-type Header map[string][]string
-
-// Add adds the key, value pair to the header.
-// It appends to any existing values associated with key.
-func (h Header) Add(key, value string) {
-	textproto.MIMEHeader(h).Add(key, value)
-}
-
-// Set sets the header entries associated with key to
-// the single element value. It replaces any existing
-// values associated with key.
-func (h Header) Set(key, value string) {
-	textproto.MIMEHeader(h).Set(key, value)
-}
-
-// Get gets the first value associated with the given key.
-// It is case insensitive; textproto.CanonicalMIMEHeaderKey is used
-// to canonicalize the provided key.
-// If there are no values associated with the key, Get returns "".
-// To access multiple values of a key, or to use non-canonical keys,
-// access the map directly.
-func (h Header) Get(key string) string {
-	return textproto.MIMEHeader(h).Get(key)
-}
-
-// Del deletes the values associated with key.
-func (h Header) Del(key string) {
-	textproto.MIMEHeader(h).Del(key)
 }
 
 // file represents a file to upload.
