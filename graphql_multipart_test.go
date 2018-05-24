@@ -27,7 +27,7 @@ func TestWithClient(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	client := NewClient("", WithHTTPClient(testClient))
+	client := NewClient("", WithHTTPClient(testClient), UseMultipartForm())
 
 	req := NewRequest(``)
 	client.Run(ctx, req, nil)
