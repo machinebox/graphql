@@ -273,6 +273,8 @@ func (req *Request) Var(key string, value interface{}) {
 }
 
 // File sets a file to upload.
+// Files are only supported with a Client that was created with
+// the UseMultipartForm option.
 func (req *Request) File(fieldname, filename string, r io.Reader) {
 	req.files = append(req.files, file{
 		Field: fieldname,
