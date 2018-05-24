@@ -35,7 +35,7 @@ func TestWithClient(t *testing.T) {
 	is.Equal(calls, 1) // calls
 }
 
-func TestDo(t *testing.T) {
+func TestDoUseMultipartForm(t *testing.T) {
 	is := is.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func TestDo(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL)
+	client := NewClient(srv.URL, UseMultipartForm())
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -80,7 +80,7 @@ func TestDoErr(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL)
+	client := NewClient(srv.URL, UseMultipartForm())
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -107,7 +107,7 @@ func TestDoNoResponse(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL)
+	client := NewClient(srv.URL, UseMultipartForm())
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -132,7 +132,7 @@ func TestQuery(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL)
+	client := NewClient(srv.URL, UseMultipartForm())
 
 	req := NewRequest("query {}")
 	req.Var("username", "matryer")
@@ -173,7 +173,7 @@ func TestFile(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	client := NewClient(srv.URL)
+	client := NewClient(srv.URL, UseMultipartForm())
 	f := strings.NewReader(`This is a file`)
 	req := NewRequest("query {}")
 	req.File("file", "filename.txt", f)
