@@ -88,11 +88,12 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 		return errors.New("cannot send files with PostFields option")
 	}
 	if c.useMultipartForm {
-		return c.runWithPostFields(ctx, req, resp)
+		return c.runWithMultipart(ctx, req, resp)
 	}
 	return c.runWithJSON(ctx, req, resp)
 }
 
+// runWithJSON sends a JSON body in the request.
 func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}) error {
 	var requestBody bytes.Buffer
 	requestBodyObj := struct {
@@ -143,7 +144,8 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	return nil
 }
 
-func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp interface{}) error {
+// runWithMultipart uses a multipart form to send individual fields.
+func (c *Client) runWithMultipart(ctx context.Context, req *Request, resp interface{}) error {
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
 	if err := writer.WriteField("query", req.q); err != nil {
