@@ -28,6 +28,12 @@
 // To specify your own http.Client, use the WithHTTPClient option:
 //  httpclient := &http.Client{}
 //  client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
+//
+// Enable files
+//
+// To send files via a multipart form, use the graphql.UseMultipartForm option:
+//  client := graphql.NewClient("https://machinebox.io/graphql", graphql.UseMultipartForm())
+// Instead of a JSON body, individual fields will be sent to the server: query, variables and files.
 package graphql
 
 import (
