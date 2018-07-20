@@ -77,21 +77,32 @@ func (c *Client) logf(format string, args ...interface{}) {
 	c.Log(fmt.Sprintf(format, args...))
 }
 
+// RetryConfig defines possible fields that client can supply for their retry strategies
 type RetryConfig struct {
-	MaxTries    int          `json:"maxTries"`
-	Interval    float64      `json:"interval"`
-	Policy      PolicyType   `json:"policy"`
-	MaxInterval float64      `json:"maxInterval"`
+	// Optional - Max number of times client should retry
+	MaxTries int `json:"maxTries"`
+	// Required - Time interval to wait before trying attempt sending a request again
+	Interval float64 `json:"interval"`
+	// Required - Defines a policy to be used for retry
+	Policy PolicyType `json:"policy"`
+	// Optional - The max interval of time to wait before retrying
+	MaxInterval float64 `json:"maxInterval"`
+	// Optional - A mapping of statuses that client should retry.
+	// If not specifed, we will use default retry behavior on certain statuses
 	RetryStatus map[int]bool `json:"statusToRetry"`
 }
 
+// PolicyType defines a type of different possible Policies to be applied towards retrying
 type PolicyType string
 
 const (
+	// ExponentialBackoff - the interval is doubled after every try until hitting MaxInterval or MaxTries
 	ExponentialBackoff PolicyType = "exponential_backoff"
-	Linear             PolicyType = "linear"
+	// Linear - the interval stays the same every try until hitting MaxTries
+	Linear PolicyType = "linear"
 )
 
+// Wrapper method to send request while optionally applying retry policy
 func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 	var (
 		resp *http.Response
@@ -128,32 +139,30 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 	return nil, fmt.Errorf("Error getting response with retry: %s", err)
 }
 
+// Increase interval for exponential backoff policy until hitting MaxInterval
 func (config *RetryConfig) increaseInterval() {
 	if config.Policy == ExponentialBackoff && config.Interval < config.MaxInterval {
 		config.Interval = math.Min(config.Interval*2, config.MaxInterval)
 	}
 }
 
-func isServerError(status int) bool {
-	return status >= 500 && status < 600
-}
-
-func isInternalServerError(status int) bool {
-	return status == 500
-}
-
+// Determines whether the client should retry the request
+// If specified, the client will use consumer-specified RetryStatus to retry request based on status code
+// Otherwise, retry on 503, 504, and 507
 func (config *RetryConfig) shouldRetry(status int) bool {
 	if len(config.RetryStatus) > 0 {
 		return config.RetryStatus[status]
 	}
-	return !isInternalServerError(status) && isServerError(status)
+	return status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout || status == http.StatusInsufficientStorage
 }
 
+// Determines whether RetryConfig is valid
 func (config *RetryConfig) isValid() bool {
 	isConfigOptional := config.Policy == ""
 	return isConfigOptional || (config.MaxTries > 0 && config.Interval <= config.MaxInterval)
 }
 
+// WithRetryConfig allows consumer to assign their retryConfig to the client's private retryConfig
 func WithRetryConfig(config RetryConfig) ClientOption {
 	return func(client *Client) {
 		client.retryConfig = config

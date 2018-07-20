@@ -16,7 +16,7 @@ import (
 func TestLinearPolicy(t *testing.T) {
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer srv.Close()
 
@@ -41,7 +41,7 @@ func TestLinearPolicy(t *testing.T) {
 func TestNoPolicySpecified(t *testing.T) {
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.WriteHeader(http.StatusServiceUnavailable)
 
 		is.Equal(r.Method, http.MethodPost)
 		b, err := ioutil.ReadAll(r.Body)
@@ -99,7 +99,7 @@ func TestCustomRetryStatus(t *testing.T) {
 func TestExponentialBackoffPolicy(t *testing.T) {
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer srv.Close()
 
