@@ -36,8 +36,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"math"
 	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -47,6 +50,7 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
+	retryConfig      RetryConfig
 
 	// Log is called with various debug information.
 	// To log to standard out, use:
@@ -73,12 +77,106 @@ func (c *Client) logf(format string, args ...interface{}) {
 	c.Log(fmt.Sprintf(format, args...))
 }
 
+// RetryConfig defines possible fields that client can supply for their retry strategies
+type RetryConfig struct {
+	// Optional - Max number of times client should retry
+	MaxTries int `json:"maxTries"`
+	// Required - Time interval to wait before trying attempt sending a request again
+	Interval float64 `json:"interval"`
+	// Required - Defines a policy to be used for retry
+	Policy PolicyType `json:"policy"`
+	// Optional - The max interval of time to wait before retrying
+	MaxInterval float64 `json:"maxInterval"`
+	// Optional - A mapping of statuses that client should retry.
+	// If not specifed, we will use default retry behavior on certain statuses
+	RetryStatus map[int]bool `json:"statusToRetry"`
+}
+
+// PolicyType defines a type of different possible Policies to be applied towards retrying
+type PolicyType string
+
+const (
+	// ExponentialBackoff - the interval is doubled after every try until hitting MaxInterval or MaxTries
+	ExponentialBackoff PolicyType = "exponential_backoff"
+	// Linear - the interval stays the same every try until hitting MaxTries
+	Linear PolicyType = "linear"
+)
+
+// Wrapper method to send request while optionally applying retry policy
+func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
+	var (
+		resp *http.Response
+		err  error
+	)
+
+	retryConfig := c.retryConfig
+	// Client did not specify retry config
+	if retryConfig.Policy == "" {
+		resp, err = c.httpClient.Do(req)
+		if err != nil {
+			return resp, fmt.Errorf("Error getting response: %v", err)
+		}
+		return resp, nil
+	}
+
+	for tryCount := 0; tryCount < retryConfig.MaxTries; tryCount++ {
+		resp, err = c.httpClient.Do(req)
+		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
+			return resp, nil
+		}
+		log.Println("Will retry after interval expires")
+
+		// Wait for interval
+		log.Printf("Waiting for interval(%f) to expire...", retryConfig.Interval)
+		timer := time.NewTimer(time.Duration(retryConfig.Interval) * time.Second)
+		<-timer.C
+
+		// Increase interval
+		retryConfig.increaseInterval()
+		log.Printf("New interval: %f", retryConfig.Interval)
+	}
+
+	return nil, fmt.Errorf("Error getting response with retry: %s", err)
+}
+
+// Increase interval for exponential backoff policy until hitting MaxInterval
+func (config *RetryConfig) increaseInterval() {
+	if config.Policy == ExponentialBackoff && config.Interval < config.MaxInterval {
+		config.Interval = math.Min(config.Interval*2, config.MaxInterval)
+	}
+}
+
+// Determines whether the client should retry the request
+// If specified, the client will use consumer-specified RetryStatus to retry request based on status code
+// Otherwise, retry on 503, 504, and 507
+func (config *RetryConfig) shouldRetry(status int) bool {
+	if len(config.RetryStatus) > 0 {
+		return config.RetryStatus[status]
+	}
+	return status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout || status == http.StatusInsufficientStorage
+}
+
+// Determines whether RetryConfig is valid
+func (config *RetryConfig) isValid() bool {
+	isConfigOptional := config.Policy == ""
+	return isConfigOptional || (config.MaxTries > 0 && config.Interval <= config.MaxInterval)
+}
+
+// WithRetryConfig allows consumer to assign their retryConfig to the client's private retryConfig
+func WithRetryConfig(config RetryConfig) ClientOption {
+	return func(client *Client) {
+		client.retryConfig = config
+	}
+}
+
 // Run executes the query and unmarshals the response from the data field
 // into the response object.
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
 // will be returned.
 func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
+	// TODO: validate retryConfig
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -123,7 +221,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	c.logf(">> headers: %v", r.Header)
 	r = r.WithContext(ctx)
-	res, err := c.httpClient.Do(r)
+	res, err := c.sendRequest(r)
 	if err != nil {
 		return err
 	}
@@ -190,7 +288,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	}
 	c.logf(">> headers: %v", r.Header)
 	r = r.WithContext(ctx)
-	res, err := c.httpClient.Do(r)
+	res, err := c.sendRequest(r)
 	if err != nil {
 		return err
 	}
