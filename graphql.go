@@ -288,7 +288,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	}
 	c.logf(">> headers: %v", r.Header)
 	r = r.WithContext(ctx)
-	res, err := c.httpClient.Do(r)
+	res, err := c.sendRequest(r)
 	if err != nil {
 		return err
 	}
