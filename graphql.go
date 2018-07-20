@@ -36,8 +36,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"math"
 	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -47,6 +50,7 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
+	retryConfig      RetryConfig
 
 	// Log is called with various debug information.
 	// To log to standard out, use:
@@ -73,12 +77,97 @@ func (c *Client) logf(format string, args ...interface{}) {
 	c.Log(fmt.Sprintf(format, args...))
 }
 
+type RetryConfig struct {
+	MaxTries    int          `json:"maxTries"`
+	Interval    float64      `json:"interval"`
+	Policy      PolicyType   `json:"policy"`
+	MaxInterval float64      `json:"maxInterval"`
+	RetryStatus map[int]bool `json:"statusToRetry"`
+}
+
+type PolicyType string
+
+const (
+	ExponentialBackoff PolicyType = "exponential_backoff"
+	Linear             PolicyType = "linear"
+)
+
+func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
+	var (
+		resp *http.Response
+		err  error
+	)
+
+	retryConfig := c.retryConfig
+	// Client did not specify retry config
+	if retryConfig.Policy == "" {
+		resp, err = c.httpClient.Do(req)
+		if err != nil {
+			return resp, fmt.Errorf("Error getting response: %v", err)
+		}
+		return resp, nil
+	}
+
+	for tryCount := 0; tryCount < retryConfig.MaxTries; tryCount++ {
+		resp, err = c.httpClient.Do(req)
+		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
+			return resp, nil
+		}
+		log.Println("Will retry after interval expires")
+
+		// Wait for interval
+		log.Printf("Waiting for interval(%f) to expire...", retryConfig.Interval)
+		timer := time.NewTimer(time.Duration(retryConfig.Interval) * time.Second)
+		<-timer.C
+
+		// Increase interval
+		retryConfig.increaseInterval()
+		log.Printf("New interval: %f", retryConfig.Interval)
+	}
+
+	return nil, fmt.Errorf("Error getting response with retry: %s", err)
+}
+
+func (config *RetryConfig) increaseInterval() {
+	if config.Policy == ExponentialBackoff && config.Interval < config.MaxInterval {
+		config.Interval = math.Min(config.Interval*2, config.MaxInterval)
+	}
+}
+
+func isServerError(status int) bool {
+	return status >= 500 && status < 600
+}
+
+func isInternalServerError(status int) bool {
+	return status == 500
+}
+
+func (config *RetryConfig) shouldRetry(status int) bool {
+	if len(config.RetryStatus) > 0 {
+		return config.RetryStatus[status]
+	}
+	return !isInternalServerError(status) && isServerError(status)
+}
+
+func (config *RetryConfig) isValid() bool {
+	isConfigOptional := config.Policy == ""
+	return isConfigOptional || (config.MaxTries > 0 && config.Interval <= config.MaxInterval)
+}
+
+func WithRetryConfig(config RetryConfig) ClientOption {
+	return func(client *Client) {
+		client.retryConfig = config
+	}
+}
+
 // Run executes the query and unmarshals the response from the data field
 // into the response object.
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
 // will be returned.
 func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
+	// TODO: validate retryConfig
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -123,7 +212,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	c.logf(">> headers: %v", r.Header)
 	r = r.WithContext(ctx)
-	res, err := c.httpClient.Do(r)
+	res, err := c.sendRequest(r)
 	if err != nil {
 		return err
 	}
