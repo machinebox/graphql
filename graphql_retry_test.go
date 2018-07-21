@@ -13,6 +13,10 @@ import (
 	"github.com/matryer/is"
 )
 
+func getTestDuration(sec int) time.Duration {
+	return time.Duration(sec)*time.Second + 1*time.Second
+}
+
 func TestLinearPolicy(t *testing.T) {
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,15 +25,12 @@ func TestLinearPolicy(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	retryConfig := RetryConfig{
-		Policy:      Linear,
-		MaxTries:    3,
-		Interval:    1,
-		MaxInterval: 10,
+	client := NewClient(srv.URL, WithDefaultLinearRetryConfig())
+	client.Log = func(str string) {
+		t.Log(str)
 	}
-	client := NewClient(srv.URL, WithRetryConfig(retryConfig))
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(10))
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
@@ -56,10 +57,12 @@ func TestNoPolicySpecified(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	retryConfig := RetryConfig{}
-	client := NewClient(srv.URL, WithRetryConfig(retryConfig))
+	client := NewClient(srv.URL)
+	client.Log = func(str string) {
+		t.Log(str)
+	}
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(1))
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
@@ -79,18 +82,19 @@ func TestCustomRetryStatus(t *testing.T) {
 	retryStatus[http.StatusOK] = true
 	retryConfig := RetryConfig{
 		Policy:      Linear,
-		MaxTries:    3,
+		MaxTries:    1,
 		Interval:    1,
-		MaxInterval: 10,
 		RetryStatus: retryStatus,
 	}
 	client := NewClient(srv.URL, WithRetryConfig(retryConfig))
+	client.Log = func(str string) {
+		t.Log(str)
+	}
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(1))
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	t.Logf("error: %s", err)
 	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
 		is.Fail()
 	}
@@ -104,19 +108,15 @@ func TestExponentialBackoffPolicy(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	retryConfig := RetryConfig{
-		Policy:      ExponentialBackoff,
-		MaxTries:    3,
-		Interval:    1,
-		MaxInterval: 10,
+	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig())
+	client.Log = func(str string) {
+		t.Log(str)
 	}
-	client := NewClient(srv.URL, WithRetryConfig(retryConfig))
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(16))
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	t.Logf("error: %s", err)
 	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
 		is.Fail()
 	}

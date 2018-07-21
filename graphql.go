@@ -36,7 +36,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -102,6 +101,21 @@ const (
 	Linear PolicyType = "linear"
 )
 
+var (
+	defaultLinearRetryConfig = RetryConfig{
+		MaxTries: 5,
+		Interval: 2,
+		Policy:   Linear,
+	}
+
+	defaultExponentialRetryConfig = RetryConfig{
+		MaxTries:    4,
+		Interval:    1,
+		Policy:      ExponentialBackoff,
+		MaxInterval: 16,
+	}
+)
+
 // Wrapper method to send request while optionally applying retry policy
 func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 	var (
@@ -124,16 +138,24 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
 			return resp, nil
 		}
-		log.Println("Will retry after interval expires")
+		c.Log("Will retry after interval expires")
 
 		// Wait for interval
-		log.Printf("Waiting for interval(%f) to expire...", retryConfig.Interval)
+		c.logf("Waiting for interval(%f) to expire...", retryConfig.Interval)
 		timer := time.NewTimer(time.Duration(retryConfig.Interval) * time.Second)
-		<-timer.C
 
-		// Increase interval
-		retryConfig.increaseInterval()
-		log.Printf("New interval: %f", retryConfig.Interval)
+		ctx := req.Context()
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("Context finished unexpectedly")
+
+		case <-timer.C:
+			// Increase interval
+			retryConfig.increaseInterval()
+			c.logf("New interval: %f", retryConfig.Interval)
+		}
+
 	}
 
 	return nil, fmt.Errorf("Error getting response with retry: %s", err)
@@ -166,6 +188,20 @@ func (config *RetryConfig) isValid() bool {
 func WithRetryConfig(config RetryConfig) ClientOption {
 	return func(client *Client) {
 		client.retryConfig = config
+	}
+}
+
+// WithDefaultLinearRetryConfig provides a default set of value for linear policy
+func WithDefaultLinearRetryConfig() ClientOption {
+	return func(client *Client) {
+		client.retryConfig = defaultLinearRetryConfig
+	}
+}
+
+// WithDefaultExponentialRetryConfig provides a default set of value for exponential backoff policy
+func WithDefaultExponentialRetryConfig() ClientOption {
+	return func(client *Client) {
+		client.retryConfig = defaultExponentialRetryConfig
 	}
 }
 
