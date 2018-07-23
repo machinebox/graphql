@@ -109,7 +109,7 @@ var (
 	}
 
 	defaultExponentialRetryConfig = RetryConfig{
-		MaxTries:    4,
+		MaxTries:    5,
 		Interval:    1,
 		Policy:      ExponentialBackoff,
 		MaxInterval: 16,
