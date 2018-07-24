@@ -18,6 +18,7 @@ func getTestDuration(sec int) time.Duration {
 }
 
 func TestLinearPolicy(t *testing.T) {
+	t.Parallel()
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -40,6 +41,7 @@ func TestLinearPolicy(t *testing.T) {
 }
 
 func TestNoPolicySpecified(t *testing.T) {
+	t.Parallel()
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -71,6 +73,7 @@ func TestNoPolicySpecified(t *testing.T) {
 }
 
 func TestCustomRetryStatus(t *testing.T) {
+	t.Parallel()
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -101,6 +104,7 @@ func TestCustomRetryStatus(t *testing.T) {
 }
 
 func TestExponentialBackoffPolicy(t *testing.T) {
+	t.Parallel()
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -113,7 +117,7 @@ func TestExponentialBackoffPolicy(t *testing.T) {
 		t.Log(str)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, getTestDuration(16))
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(31))
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
