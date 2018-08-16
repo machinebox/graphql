@@ -107,12 +107,17 @@ func TestExponentialBackoffPolicy(t *testing.T) {
 	t.Parallel()
 	is := is.New(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
+		w.WriteHeader(http.StatusBadGateway)
 	}))
 	defer srv.Close()
 
 	ctx := context.Background()
 	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig())
+	client.retryConfig.BeforeRetry = func(req *http.Request, resp *http.Response, attemptCount int) {
+		t.Logf("Retrying request: %+v", req)
+		t.Logf("Retrying after last response: %+v", resp)
+		t.Logf("Retrying attempt count: %d", attemptCount)
+	}
 	client.Log = func(str string) {
 		t.Log(str)
 	}

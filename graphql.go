@@ -89,6 +89,8 @@ type RetryConfig struct {
 	// Optional - A mapping of statuses that client should retry.
 	// If not specifed, we will use default retry behavior on certain statuses
 	RetryStatus map[int]bool `json:"statusToRetry"`
+	// Client can use this function to supply some logic to further debug GraphQL request & response
+	BeforeRetry func(req *http.Request, resp *http.Response, attemptNum int)
 }
 
 // PolicyType defines a type of different possible Policies to be applied towards retrying
@@ -138,6 +140,11 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
 			return resp, nil
 		}
+
+		if retryConfig.BeforeRetry != nil {
+			retryConfig.BeforeRetry(req, resp, tryCount+1)
+		}
+
 		c.Log("Will retry after interval expires")
 
 		// Wait for interval
@@ -170,12 +177,12 @@ func (config *RetryConfig) increaseInterval() {
 
 // Determines whether the client should retry the request
 // If specified, the client will use consumer-specified RetryStatus to retry request based on status code
-// Otherwise, retry on 503, 504, and 507
+// Otherwise, retry on 502, 503, 504, and 507
 func (config *RetryConfig) shouldRetry(status int) bool {
 	if len(config.RetryStatus) > 0 {
 		return config.RetryStatus[status]
 	}
-	return status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout || status == http.StatusInsufficientStorage
+	return status == http.StatusBadGateway || status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout || status == http.StatusInsufficientStorage
 }
 
 // Determines whether RetryConfig is valid
