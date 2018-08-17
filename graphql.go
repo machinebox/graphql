@@ -212,6 +212,13 @@ func WithDefaultExponentialRetryConfig() ClientOption {
 	}
 }
 
+// WithBeforeRetryHandler provides a handler for beforeRetry
+func WithBeforeRetryHandler(beforeRetryHandler func(*http.Request, *http.Response, int)) ClientOption {
+	return func(client *Client) {
+		client.retryConfig.BeforeRetry = beforeRetryHandler
+	}
+}
+
 // Run executes the query and unmarshals the response from the data field
 // into the response object.
 // Pass in a nil response object to skip response parsing.
