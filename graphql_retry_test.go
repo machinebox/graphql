@@ -112,7 +112,7 @@ func TestExponentialBackoffPolicy(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig())
+	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig(), WithBeforeRetryHandler(logHandler(t)))
 	client.retryConfig.BeforeRetry = func(req *http.Request, resp *http.Response, attemptCount int) {
 		t.Logf("Retrying request: %+v", req)
 		t.Logf("Retrying after last response: %+v", resp)
@@ -126,6 +126,58 @@ func TestExponentialBackoffPolicy(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
+		is.Fail()
+	}
+}
+
+func logHandler(t *testing.T) func(*http.Request, *http.Response, int) {
+	return func(req *http.Request, resp *http.Response, attemptCount int) {
+		t.Logf("Retrying request: %+v", req)
+		t.Logf("Retrying after last response: %+v", resp)
+		t.Logf("Retrying attempt count: %d", attemptCount)
+	}
+}
+
+func TestExponentialBackoffPolicyMultiPart(t *testing.T) {
+	t.Parallel()
+	is := is.New(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig(), WithBeforeRetryHandler(logHandler(t)), UseMultipartForm())
+	client.retryConfig.BeforeRetry = func(req *http.Request, resp *http.Response, attemptCount int) {
+		t.Logf("Retrying request: %+v", req)
+		t.Logf("Retrying after last response: %+v", resp)
+		t.Logf("Retrying attempt count: %d", attemptCount)
+	}
+	client.Log = func(str string) {
+		t.Log(str)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(31))
+	defer cancel()
+	var responseData map[string]interface{}
+
+	variables := map[string]interface{}{
+		"a": 1,
+		"b": 2,
+	}
+	fileObj := file{
+		Field: "testField",
+		Name:  "testName",
+		R:     strings.NewReader("testReader"),
+	}
+	graphQLReq := &Request{
+		q:     "query {}",
+		vars:  variables,
+		files: []file{fileObj},
+	}
+	err := client.Run(ctx, graphQLReq, &responseData)
+	t.Logf("err: %s", err)
 	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
 		is.Fail()
 	}

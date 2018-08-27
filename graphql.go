@@ -36,6 +36,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -135,11 +136,25 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		return resp, nil
 	}
 
+	c.logf("debug original request: %+v", req)
+	// Persist request body
+	var body io.Reader = req.Body
 	for tryCount := 0; tryCount < retryConfig.MaxTries; tryCount++ {
+
+		// Assign request body for new request before retry with a temp buf
+		buf := new(bytes.Buffer)
+		req.Body = ioutil.NopCloser(io.TeeReader(body, buf))
+
+		c.logf("debug request: %+v", req)
 		resp, err = c.httpClient.Do(req)
+		c.logf("debug response: %+v", resp)
+
 		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
 			return resp, nil
 		}
+
+		// Assign buf back to body
+		body = buf
 
 		if retryConfig.BeforeRetry != nil {
 			retryConfig.BeforeRetry(req, resp, tryCount+1)
@@ -182,7 +197,8 @@ func (config *RetryConfig) shouldRetry(status int) bool {
 	if len(config.RetryStatus) > 0 {
 		return config.RetryStatus[status]
 	}
-	return status == http.StatusBadGateway || status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout || status == http.StatusInsufficientStorage
+	// return status == http.StatusBadGateway || status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout || status == http.StatusInsufficientStorage
+	return (status >= 500 && status <= 599) || status == 429
 }
 
 // Determines whether RetryConfig is valid
