@@ -41,6 +41,60 @@ func TestDoJSON(t *testing.T) {
 	is.Equal(responseData["something"], "yes")
 }
 
+func TestDoJSONServerError(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		b, err := ioutil.ReadAll(r.Body)
+		is.NoErr(err)
+		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, `Internal Server Error`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL)
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.Equal(calls, 1) // calls
+	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
+}
+
+func TestDoJSONBadRequestErr(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		b, err := ioutil.ReadAll(r.Body)
+		is.NoErr(err)
+		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, `{
+			"errors": [{
+				"message": "miscellaneous message as to why the the request was bad"
+			}]
+		}`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL)
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.Equal(calls, 1) // calls
+	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+}
+
 func TestQueryJSON(t *testing.T) {
 	is := is.New(t)
 
