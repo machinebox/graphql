@@ -121,7 +121,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 			r.Header.Add(key, value)
 		}
 	}
-	c.logf(">> headers: %v", r.Header)
+
 	r = r.WithContext(ctx)
 	res, err := c.httpClient.Do(r)
 	if err != nil {
