@@ -35,7 +35,7 @@ func TestLinearPolicy(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
+	if !strings.HasPrefix(err.Error(), "Client has retried ") {
 		is.Fail()
 	}
 }
@@ -98,7 +98,7 @@ func TestCustomRetryStatus(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
+	if !strings.HasPrefix(err.Error(), "Client has retried ") {
 		is.Fail()
 	}
 }
@@ -113,11 +113,6 @@ func TestExponentialBackoffPolicy(t *testing.T) {
 
 	ctx := context.Background()
 	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig(), WithBeforeRetryHandler(logHandler(t)))
-	client.retryConfig.BeforeRetry = func(req *http.Request, resp *http.Response, attemptCount int) {
-		t.Logf("Retrying request: %+v", req)
-		t.Logf("Retrying after last response: %+v", resp)
-		t.Logf("Retrying attempt count: %d", attemptCount)
-	}
 	client.Log = func(str string) {
 		t.Log(str)
 	}
@@ -126,15 +121,16 @@ func TestExponentialBackoffPolicy(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
+	if !strings.HasPrefix(err.Error(), "Client has retried ") {
 		is.Fail()
 	}
 }
 
-func logHandler(t *testing.T) func(*http.Request, *http.Response, int) {
-	return func(req *http.Request, resp *http.Response, attemptCount int) {
+func logHandler(t *testing.T) func(*http.Request, *http.Response, error, int) {
+	return func(req *http.Request, resp *http.Response, err error, attemptCount int) {
 		t.Logf("Retrying request: %+v", req)
 		t.Logf("Retrying after last response: %+v", resp)
+		t.Logf("Error: %s", err)
 		t.Logf("Retrying attempt count: %d", attemptCount)
 	}
 }
@@ -149,11 +145,6 @@ func TestExponentialBackoffPolicyMultiPart(t *testing.T) {
 
 	ctx := context.Background()
 	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig(), WithBeforeRetryHandler(logHandler(t)), UseMultipartForm())
-	client.retryConfig.BeforeRetry = func(req *http.Request, resp *http.Response, attemptCount int) {
-		t.Logf("Retrying request: %+v", req)
-		t.Logf("Retrying after last response: %+v", resp)
-		t.Logf("Retrying attempt count: %d", attemptCount)
-	}
 	client.Log = func(str string) {
 		t.Log(str)
 	}
@@ -178,7 +169,7 @@ func TestExponentialBackoffPolicyMultiPart(t *testing.T) {
 	}
 	err := client.Run(ctx, graphQLReq, &responseData)
 	t.Logf("err: %s", err)
-	if !strings.HasPrefix(err.Error(), "Error getting response with retry:") {
+	if !strings.HasPrefix(err.Error(), "Client has retried ") {
 		is.Fail()
 	}
 }
