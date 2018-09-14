@@ -72,9 +72,10 @@ func TestDoErr(t *testing.T) {
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
 		io.WriteString(w, `{
-			"errors": [{
-				"message": "Something went wrong"
-			}]
+			"errors": [
+			{ "message": "Something went wrong" },
+			{ "message": "Something else went wrong" }
+			]
 		}`)
 	}))
 	defer srv.Close()
@@ -87,7 +88,7 @@ func TestDoErr(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.True(err != nil)
-	is.Equal(err.Error(), "graphql: Something went wrong")
+	is.Equal(err.Error(), "Something else went wrong: Something went wrong")
 }
 
 func TestDoNoResponse(t *testing.T) {

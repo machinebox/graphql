@@ -121,7 +121,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 			r.Header.Add(key, value)
 		}
 	}
-	c.logf(">> headers: %v", r.Header)
+
 	r = r.WithContext(ctx)
 	res, err := c.httpClient.Do(r)
 	if err != nil {
@@ -137,8 +137,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "decoding response")
 	}
 	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
+		return gr.bundleErrors()
 	}
 	return nil
 }
@@ -204,8 +203,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		return errors.Wrap(err, "decoding response")
 	}
 	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
+		return gr.bundleErrors()
 	}
 	return nil
 }
@@ -242,6 +240,19 @@ func (e graphErr) Error() string {
 type graphResponse struct {
 	Data   interface{}
 	Errors []graphErr
+}
+
+func (resp graphResponse) bundleErrors() error {
+	var err error
+
+	for _, graphqlError := range resp.Errors {
+		if err != nil {
+			err = errors.Wrap(err, graphqlError.Message)
+		} else {
+			err = errors.New(graphqlError.Message)
+		}
+	}
+	return err
 }
 
 // Request is a GraphQL request.
