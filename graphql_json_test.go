@@ -76,6 +76,45 @@ func TestQueryJSON(t *testing.T) {
 	is.Equal(resp.Value, "some data")
 }
 
+func TestDoJSONErr(t *testing.T) {
+	is := is.New(t)
+
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+		calls++
+
+		body, err := ioutil.ReadAll(req.Body)
+		is.NoErr(err)
+
+		is.Equal(string(body), `{"query":"query {}","variables":null}`+"\n")
+
+		io.WriteString(writer,
+			`{
+				"errors": [
+					{
+						"message": "Something went wrong"
+					},
+					{
+						"message": "Something else went wrong"
+					}
+				]
+			}`)
+	}))
+
+	defer server.Close()
+
+	ctx := context.Background()
+	client := NewClient(server.URL)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+
+	is.True(err != nil)
+	is.Equal(err.Error(), "Something else went wrong: Something went wrong")
+}
+
 func TestHeader(t *testing.T) {
 	is := is.New(t)
 
