@@ -39,6 +39,7 @@ import (
 	"io/ioutil"
 	"math"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"time"
 
@@ -146,8 +147,8 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		resp, err := c.httpClient.Do(req)
 		c.logf("debug response: %+v", resp)
 
-		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
-			return resp, nil
+		if !retryConfig.shouldRetry(resp.StatusCode) || (err != nil && !isErrRetryable(err)) {
+			return resp, err
 		}
 
 		// Assign buf back to body
@@ -184,6 +185,12 @@ func (config *RetryConfig) increaseInterval() {
 	if config.Policy == ExponentialBackoff && config.Interval < config.MaxInterval {
 		config.Interval = math.Min(config.Interval*2, config.MaxInterval)
 	}
+}
+
+// Check if err is retryable
+func isErrRetryable(err error) bool {
+	netErr, ok := err.(net.Error)
+	return ok && netErr.Timeout()
 }
 
 // Determines whether the client should retry the request

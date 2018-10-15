@@ -173,3 +173,9 @@ func TestExponentialBackoffPolicyMultiPart(t *testing.T) {
 		is.Fail()
 	}
 }
+
+func TestIsErrRetryableNil(t *testing.T) {
+	is := is.New(t)
+	flag := isErrRetryable(nil)
+	is.True(!flag)
+}
