@@ -40,6 +40,25 @@ func TestLinearPolicy(t *testing.T) {
 	}
 }
 
+func TestNilRespStatus200(t *testing.T) {
+	t.Parallel()
+	is := is.New(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+
+	client := NewClient(srv.URL, WithDefaultLinearRetryConfig())
+	client.Log = func(str string) {
+		t.Log(str)
+	}
+
+	var responseData map[string]interface{}
+	err := client.Run(context.Background(), &Request{q: "query {}"}, &responseData)
+	is.NoErr(err)
+}
+
 func TestNoPolicySpecified(t *testing.T) {
 	t.Parallel()
 	is := is.New(t)

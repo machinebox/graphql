@@ -143,11 +143,18 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		buf := new(bytes.Buffer)
 		req.Body = ioutil.NopCloser(io.TeeReader(body, buf))
 
+		if req.Context().Err() == context.Canceled {
+			return nil, context.Canceled
+		}
+
 		c.logf("debug request: %+v", req)
 		resp, err := c.httpClient.Do(req)
 		c.logf("debug response: %+v", resp)
 
-		if !retryConfig.shouldRetry(resp.StatusCode) || (err != nil && !isErrRetryable(err)) {
+		if err != nil && !isErrRetryable(err) {
+			return resp, err
+		}
+		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
 			return resp, err
 		}
 
