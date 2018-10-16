@@ -90,6 +90,56 @@ func TestDoErr(t *testing.T) {
 	is.Equal(err.Error(), "graphql: Something went wrong")
 }
 
+func TestDoServerErr(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		query := r.FormValue("query")
+		is.Equal(query, `query {}`)
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, `Internal Server Error`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL, UseMultipartForm())
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
+}
+
+func TestDoBadRequestErr(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		query := r.FormValue("query")
+		is.Equal(query, `query {}`)
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, `{
+			"errors": [{
+				"message": "miscellaneous message as to why the the request was bad"
+			}]
+		}`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL, UseMultipartForm())
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+}
+
 func TestDoNoResponse(t *testing.T) {
 	is := is.New(t)
 	var calls int

@@ -4,9 +4,10 @@ go:
   - 1.7.x
   - 1.8.x
   - 1.9.x
+  - 1.10.x
 
 before_install:
-  - go get github.com/golang/lint/golint
+  - go get golang.org/x/lint/golint
 
 before_script:
   - go vet ./...
