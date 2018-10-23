@@ -62,6 +62,33 @@ func TestDoUseMultipartForm(t *testing.T) {
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
 }
+func TestImmediatelyCloseReqBody(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		query := r.FormValue("query")
+		is.Equal(query, `query {}`)
+		io.WriteString(w, `{
+			"data": {
+				"something": "yes"
+			}
+		}`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL, ImmediatelyCloseReqBody(), UseMultipartForm())
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.NoErr(err)
+	is.Equal(calls, 1) // calls
+	is.Equal(responseData["something"], "yes")
+}
 
 func TestDoErr(t *testing.T) {
 	is := is.New(t)

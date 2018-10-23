@@ -48,6 +48,9 @@ type Client struct {
 	httpClient       *http.Client
 	useMultipartForm bool
 
+	//closeReq will close the request body immediately allowing for reuse of client
+	closeReq bool
+
 	// Log is called with various debug information.
 	// To log to standard out, use:
 	//  client.Log = func(s string) { log.Println(s) }
@@ -114,6 +117,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	if err != nil {
 		return err
 	}
+	r.Close = c.closeReq
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
 	for key, values := range req.Header {
@@ -184,6 +188,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	if err != nil {
 		return err
 	}
+	r.Close = c.closeReq
 	r.Header.Set("Content-Type", writer.FormDataContentType())
 	r.Header.Set("Accept", "application/json; charset=utf-8")
 	for key, values := range req.Header {
@@ -233,6 +238,12 @@ func UseMultipartForm() ClientOption {
 	}
 }
 
+//ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
+func ImmediatelyCloseReqBody() ClientOption{
+	return func(client *Client) {
+		client.closeReq = true
+	}
+}
 // ClientOption are functions that are passed into NewClient to
 // modify the behaviour of the Client.
 type ClientOption func(*Client)
