@@ -48,7 +48,7 @@ type Client struct {
 	httpClient       *http.Client
 	useMultipartForm bool
 
-	//closeReq will close the request body immediately allowing for reuse of client
+	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
 
 	// Log is called with various debug information.
@@ -239,11 +239,12 @@ func UseMultipartForm() ClientOption {
 }
 
 //ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
-func ImmediatelyCloseReqBody() ClientOption{
+func ImmediatelyCloseReqBody() ClientOption {
 	return func(client *Client) {
 		client.closeReq = true
 	}
 }
+
 // ClientOption are functions that are passed into NewClient to
 // modify the behaviour of the Client.
 type ClientOption func(*Client)
