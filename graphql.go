@@ -72,6 +72,9 @@ func NewClient(endpoint string, opts ...ClientOption) *Client {
 	if c.httpClient == nil {
 		c.httpClient = http.DefaultClient
 	}
+	if c.retryConfig.Policy == "" {
+		c.retryConfig = defaultNoRetryConfig
+	}
 	return c
 }
 
@@ -119,11 +122,14 @@ var (
 		Policy:      ExponentialBackoff,
 		MaxInterval: 16,
 	}
+
+	defaultNoRetryConfig = RetryConfig{
+		MaxTries: 1,
+	}
 )
 
 // Wrapper method to send request while optionally applying retry policy
-func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
-	retryConfig := c.retryConfig
+func (c *Client) sendRequest(retryConfig *RetryConfig, req *http.Request) (*http.Response, error) {
 	// Client did not specify retry config
 	if retryConfig.Policy == "" {
 		resp, err := c.httpClient.Do(req)
@@ -138,6 +144,7 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 	// Persist request body
 	var body io.Reader = req.Body
 	tryCount := 0
+	statusCode := 0
 	for ; tryCount < retryConfig.MaxTries; tryCount++ {
 		// Assign request body for new request before retry with a temp buf
 		buf := new(bytes.Buffer)
@@ -154,7 +161,8 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		if err != nil && !isErrRetryable(err) {
 			return resp, err
 		}
-		if err == nil && !retryConfig.shouldRetry(resp.StatusCode) {
+		statusCode = resp.StatusCode
+		if err == nil && !retryConfig.shouldRetry(statusCode) {
 			return resp, err
 		}
 
@@ -175,7 +183,7 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("Context finished unexpectedly")
+			return nil, errors.New("Context finished unexpectedly")
 
 		case <-timer.C:
 			// Increase interval
@@ -184,7 +192,7 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("Client has retried %d times but unable to get a successful response", tryCount)
+	return nil, fmt.Errorf("Client has retried %d times but unable to get a successful response. Status code: %d", tryCount, statusCode)
 }
 
 // Increase interval for exponential backoff policy until hitting MaxInterval
@@ -307,24 +315,78 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	c.logf(">> headers: %v", r.Header)
 	r = r.WithContext(ctx)
-	res, err := c.sendRequest(r)
+
+	return c.executeRequest(gr, r)
+}
+
+func getGraphQLResp(reader io.ReadCloser, schema interface{}) error {
+	defer reader.Close()
+
+	err := json.NewDecoder(reader).Decode(schema)
 	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, res.Body); err != nil {
-		return errors.Wrap(err, "reading body")
-	}
-	c.logf("<< %s", buf.String())
-	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		return errors.Wrap(err, "decoding response")
 	}
-	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
-	}
+
 	return nil
+}
+
+func (c *Client) executeRequest(gr *graphResponse, r *http.Request) error {
+	gqlRetryConfig := c.retryConfig
+	var body io.Reader = r.Body
+	tryCount := 0
+	for ; tryCount < gqlRetryConfig.MaxTries; tryCount++ {
+		buf := new(bytes.Buffer)
+		r.Body = ioutil.NopCloser(io.TeeReader(body, buf))
+
+		retryConfig := c.retryConfig
+		res, err := c.sendRequest(&retryConfig, r)
+		if err != nil {
+			return err
+		}
+		if retryConfig.Interval > c.retryConfig.Interval {
+			return nil
+		}
+
+		c.logf("<< %s", buf.String())
+
+		err = getGraphQLResp(res.Body, &gr)
+		if err != nil {
+			return err
+		}
+		c.logf("<< gr: %+v", gr)
+
+		if len(gr.Errors) > 0 {
+			// Check to see if we should retry based on error field
+			if shouldRetry(gr.Errors) {
+				body = buf
+
+				timer := time.NewTimer(time.Duration(gqlRetryConfig.Interval) * time.Second)
+
+				ctx := r.Context()
+
+				select {
+				case <-ctx.Done():
+					return errors.New("Context finished unexpectedly")
+
+				case <-timer.C:
+					// Increase interval
+					gqlRetryConfig.increaseInterval()
+					c.logf("New interval: %f", gqlRetryConfig.Interval)
+				}
+
+			} else {
+				// return first error
+				c.Log("debug return error")
+				return getAggrErr(gr.Errors)
+			}
+
+		} else {
+			// No error so return
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Client has retried %d times but unable to get a successful response. Error: %s", tryCount, getAggrErr(gr.Errors))
 }
 
 func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp interface{}) error {
@@ -377,24 +439,8 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	}
 	c.logf(">> headers: %v", r.Header)
 	r = r.WithContext(ctx)
-	res, err := c.sendRequest(r)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, res.Body); err != nil {
-		return errors.Wrap(err, "reading body")
-	}
-	c.logf("<< %s", buf.String())
-	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
-		return errors.Wrap(err, "decoding response")
-	}
-	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
-	}
-	return nil
+
+	return c.executeRequest(gr, r)
 }
 
 // WithHTTPClient specifies the underlying http.Client to use when
@@ -417,14 +463,6 @@ func UseMultipartForm() ClientOption {
 // ClientOption are functions that are passed into NewClient to
 // modify the behaviour of the Client.
 type ClientOption func(*Client)
-
-type graphErr struct {
-	Message string
-}
-
-func (e graphErr) Error() string {
-	return "graphql: " + e.Message
-}
 
 type graphResponse struct {
 	Data   interface{}

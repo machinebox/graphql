@@ -194,7 +194,93 @@ func TestExponentialBackoffPolicyMultiPart(t *testing.T) {
 }
 
 func TestIsErrRetryableNil(t *testing.T) {
+	t.Parallel()
 	is := is.New(t)
 	flag := isErrRetryable(nil)
 	is.True(!flag)
+}
+
+func TestErrCodeRetry(t *testing.T) {
+	t.Parallel()
+	is := is.New(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// Read res file
+		resp, err := ioutil.ReadFile("resources/capacity_exceeded.json")
+		is.NoErr(err)
+		w.Write(resp)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig(), WithBeforeRetryHandler(logHandler(t)), UseMultipartForm())
+	client.Log = func(str string) {
+		t.Log(str)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(31))
+	defer cancel()
+	var responseData map[string]interface{}
+
+	variables := map[string]interface{}{
+		"a": 1,
+		"b": 2,
+	}
+	fileObj := file{
+		Field: "testField",
+		Name:  "testName",
+		R:     strings.NewReader("testReader"),
+	}
+	graphQLReq := &Request{
+		q:     "query {}",
+		vars:  variables,
+		files: []file{fileObj},
+	}
+	err := client.Run(ctx, graphQLReq, &responseData)
+	t.Logf("err: %s", err)
+	if !strings.HasPrefix(err.Error(), "Client has retried ") {
+		is.Fail()
+	}
+}
+
+func TestErrCodeNoRetry(t *testing.T) {
+	t.Parallel()
+	is := is.New(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// Read res file
+		resp, err := ioutil.ReadFile("resources/not_found.json")
+		is.NoErr(err)
+		w.Write(resp)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL, WithDefaultExponentialRetryConfig(), WithBeforeRetryHandler(logHandler(t)), UseMultipartForm())
+	client.Log = func(str string) {
+		t.Log(str)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, getTestDuration(31))
+	defer cancel()
+	var responseData map[string]interface{}
+
+	variables := map[string]interface{}{
+		"a": 1,
+		"b": 2,
+	}
+	fileObj := file{
+		Field: "testField",
+		Name:  "testName",
+		R:     strings.NewReader("testReader"),
+	}
+	graphQLReq := &Request{
+		q:     "query {}",
+		vars:  variables,
+		files: []file{fileObj},
+	}
+	err := client.Run(ctx, graphQLReq, &responseData)
+	if !strings.HasPrefix(err.Error(), "graphql: error 0: message (Requested object was not found)") {
+		is.Fail()
+	}
 }

@@ -1,0 +1,47 @@
+{
+    "data": {
+        "query": null
+    },
+    "errors": [
+        {
+            "message": "Requested object was not found",
+            "name": "not_found",
+            "data": {
+                "serviceMessage": "Invalid taskStatus value",
+                "requestId": "0A0B0140:9A22_0A0B66AA:0050_5BD24F0C_1ADE258D:7651",
+                "errorCode": "invalidTaskStatus",
+                "details": {
+                  "input": "aborted",
+                  "allowedStatus": [
+                    "running",
+                    "complete",
+                    "failed",
+                    "queued",
+                    "waiting"
+                  ]
+                },
+                "errorId": "cab2287e-e1b0-4bf1-aebc-ccef9fe2fed8"
+            }
+        },
+        {
+            "message": "Requested object was not found",
+            "name": "not_found",
+            "data": {
+                "serviceMessage": "Invalid taskStatus value",
+                "requestId": "0A0B0140:9A22_0A0B66AA:0050_5BD24F0C_1ADE258D:7651",
+                "errorCode": "invalidTaskStatus",
+                "details": {
+                  "input": "aborted",
+                  "allowedStatus": [
+                    "running",
+                    "complete",
+                    "failed",
+                    "queued",
+                    "waiting"
+                  ]
+                },
+                "errorId": "cab2287e-e1b0-4bf1-aebc-ccef9fe2fed8"
+            }
+        }
+    ]
+}
