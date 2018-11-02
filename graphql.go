@@ -161,9 +161,11 @@ func (c *Client) sendRequest(retryConfig *RetryConfig, req *http.Request) (*http
 		if err != nil && !isErrRetryable(err) {
 			return resp, err
 		}
-		statusCode = resp.StatusCode
-		if err == nil && !retryConfig.shouldRetry(statusCode) {
-			return resp, err
+		if err == nil {
+			statusCode = resp.StatusCode
+			if !retryConfig.shouldRetry(statusCode) {
+				return resp, err
+			}
 		}
 
 		// Assign buf back to body
