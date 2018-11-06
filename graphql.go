@@ -38,7 +38,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-
+	
 	"github.com/pkg/errors"
 )
 
@@ -47,10 +47,10 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
-
+	
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
-
+	
 	// Log is called with various debug information.
 	// To log to standard out, use:
 	//  client.Log = func(s string) { log.Println(s) }
@@ -137,10 +137,12 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "reading body")
 	}
 	c.logf("<< %s", buf.String())
+	
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)
+	}
+	
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
-		if res.StatusCode != http.StatusOK {
-			return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)
-		}
 		return errors.Wrap(err, "decoding response")
 	}
 	if len(gr.Errors) > 0 {
@@ -238,7 +240,7 @@ func UseMultipartForm() ClientOption {
 	}
 }
 
-//ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
+// ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
 func ImmediatelyCloseReqBody() ClientOption {
 	return func(client *Client) {
 		client.closeReq = true
@@ -267,7 +269,7 @@ type Request struct {
 	q     string
 	vars  map[string]interface{}
 	files []File
-
+	
 	// Header represent any request headers that will be set
 	// when the request is made.
 	Header http.Header
@@ -290,6 +292,21 @@ func (req *Request) Var(key string, value interface{}) {
 	req.vars[key] = value
 }
 
+// Vars gets the variables for this Request.
+func (req *Request) Vars() map[string]interface{} {
+	return req.vars
+}
+
+// Files gets the files in this request.
+func (req *Request) Files() []File {
+	return req.files
+}
+
+// Query gets the query string of this request.
+func (req *Request) Query() string {
+	return req.q
+}
+
 // File sets a file to upload.
 // Files are only supported with a Client that was created with
 // the UseMultipartForm option.
@@ -306,20 +323,4 @@ type File struct {
 	Field string
 	Name  string
 	R     io.Reader
-}
-
-// RequestVars gets the variables from a Request.
-func RequestVars(req *Request) map[string]interface{} {
-	return req.vars
-}
-
-// RequestQuery gets the query from the Request.
-func RequestQuery(req *Request) string {
-	return req.q
-}
-
-// RequestFiles gets the files that have been set in a
-// Request.
-func RequestFiles(req *Request) []File {
-	return req.files
 }

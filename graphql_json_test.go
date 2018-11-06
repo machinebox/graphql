@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
+	
 	"github.com/matryer/is"
 )
 
@@ -28,10 +28,10 @@ func TestDoJSON(t *testing.T) {
 		}`)
 	}))
 	defer srv.Close()
-
+	
 	ctx := context.Background()
 	client := NewClient(srv.URL)
-
+	
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
@@ -54,10 +54,10 @@ func TestDoJSONServerError(t *testing.T) {
 		io.WriteString(w, `Internal Server Error`)
 	}))
 	defer srv.Close()
-
+	
 	ctx := context.Background()
 	client := NewClient(srv.URL)
-
+	
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
@@ -66,27 +66,59 @@ func TestDoJSONServerError(t *testing.T) {
 	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
 }
 
+func TestDoJSONError400(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				is.Equal(r.Method, http.MethodPost)
+				_, err := ioutil.ReadAll(r.Body)
+				is.NoErr(err)
+				w.WriteHeader(http.StatusBadRequest)
+				io.WriteString(w, `{ "error": "bad request"}`)
+			},
+		),
+	)
+	defer srv.Close()
+	
+	ctx := context.Background()
+	client := NewClient(srv.URL)
+	
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.Equal(calls, 1) // calls
+	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 400")
+}
+
 func TestDoJSONBadRequestErr(t *testing.T) {
 	is := is.New(t)
 	var calls int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		is.Equal(r.Method, http.MethodPost)
-		b, err := ioutil.ReadAll(r.Body)
-		is.NoErr(err)
-		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
-		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{
+	srv := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				is.Equal(r.Method, http.MethodPost)
+				b, err := ioutil.ReadAll(r.Body)
+				is.NoErr(err)
+				is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
+				w.WriteHeader(http.StatusOK)
+				io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
 			}]
 		}`)
-	}))
+			},
+		),
+	)
 	defer srv.Close()
-
+	
 	ctx := context.Background()
 	client := NewClient(srv.URL)
-
+	
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
@@ -97,7 +129,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 
 func TestQueryJSON(t *testing.T) {
 	is := is.New(t)
-
+	
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -110,52 +142,52 @@ func TestQueryJSON(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-
+	
 	client := NewClient(srv.URL)
-
+	
 	req := NewRequest("query {}")
 	req.Var("username", "matryer")
-
+	
 	// check variables
 	is.True(req != nil)
 	is.Equal(req.vars["username"], "matryer")
-
+	
 	var resp struct {
 		Value string
 	}
 	err := client.Run(ctx, req, &resp)
 	is.NoErr(err)
 	is.Equal(calls, 1)
-
+	
 	is.Equal(resp.Value, "some data")
 }
 
 func TestHeader(t *testing.T) {
 	is := is.New(t)
-
+	
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		is.Equal(r.Header.Get("X-Custom-Header"), "123")
-
+		
 		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
 		is.NoErr(err)
 	}))
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-
+	
 	client := NewClient(srv.URL)
-
+	
 	req := NewRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
-
+	
 	var resp struct {
 		Value string
 	}
 	err := client.Run(ctx, req, &resp)
 	is.NoErr(err)
 	is.Equal(calls, 1)
-
+	
 	is.Equal(resp.Value, "some data")
 }
