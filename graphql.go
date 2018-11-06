@@ -266,7 +266,7 @@ type graphResponse struct {
 type Request struct {
 	q     string
 	vars  map[string]interface{}
-	files []file
+	files []File
 
 	// Header represent any request headers that will be set
 	// when the request is made.
@@ -294,26 +294,32 @@ func (req *Request) Var(key string, value interface{}) {
 // Files are only supported with a Client that was created with
 // the UseMultipartForm option.
 func (req *Request) File(fieldname, filename string, r io.Reader) {
-	req.files = append(req.files, file{
+	req.files = append(req.files, File{
 		Field: fieldname,
 		Name:  filename,
 		R:     r,
 	})
 }
 
-// file represents a file to upload.
-type file struct {
+// File represents a file to upload.
+type File struct {
 	Field string
 	Name  string
 	R     io.Reader
 }
 
-// RequestVars gets the variables from a request.
+// RequestVars gets the variables from a Request.
 func RequestVars(req *Request) map[string]interface{} {
 	return req.vars
 }
 
-// RequestQuery gets the query from the request.
+// RequestQuery gets the query from the Request.
 func RequestQuery(req *Request) string {
 	return req.q
+}
+
+// RequestFiles gets the files that have been set in a
+// Request.
+func RequestFiles(req *Request) []File {
+	return req.files
 }
