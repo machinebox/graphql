@@ -290,6 +290,21 @@ func (req *Request) Var(key string, value interface{}) {
 	req.vars[key] = value
 }
 
+// Vars gets the variables for this Request.
+func (req *Request) Vars() map[string]interface{} {
+	return req.vars
+}
+
+// Files gets the files in this request.
+func (req *Request) Files() []File {
+	return req.files
+}
+
+// Query gets the query string of this request.
+func (req *Request) Query() string {
+	return req.q
+}
+
 // File sets a file to upload.
 // Files are only supported with a Client that was created with
 // the UseMultipartForm option.
@@ -306,20 +321,4 @@ type File struct {
 	Field string
 	Name  string
 	R     io.Reader
-}
-
-// RequestVars gets the variables from a Request.
-func RequestVars(req *Request) map[string]interface{} {
-	return req.vars
-}
-
-// RequestQuery gets the query from the Request.
-func RequestQuery(req *Request) string {
-	return req.q
-}
-
-// RequestFiles gets the files that have been set in a
-// Request.
-func RequestFiles(req *Request) []File {
-	return req.files
 }
