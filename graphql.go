@@ -307,3 +307,13 @@ type file struct {
 	Name  string
 	R     io.Reader
 }
+
+// RequestVars gets the variables from a request.
+func RequestVars(req *Request) map[string]interface{} {
+	return req.vars
+}
+
+// RequestQuery gets the query from the request.
+func RequestQuery(req *Request) string {
+	return req.q
+}
