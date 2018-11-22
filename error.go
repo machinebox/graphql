@@ -23,7 +23,7 @@ type graphErr struct {
 	Name       graphErrType  `json:"name,omitempty"`
 	TimeThrown string        `json:"time_thrown,omitempty"`
 	Data       interface{}   `json:"data,omitempty"`
-	Path       []string      `json:"path,omitempty"`
+	Path       []interface{} `json:"path,omitempty"`
 	Locations  []graphErrLoc `json:"locations,omitempty"`
 }
 

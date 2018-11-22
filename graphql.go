@@ -377,7 +377,6 @@ func (c *Client) executeRequest(gr *graphResponse, r *http.Request) error {
 				}
 
 			} else {
-				// return first error
 				c.Log("debug return error")
 				return getAggrErr(gr.Errors)
 			}

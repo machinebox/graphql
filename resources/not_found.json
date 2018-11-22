@@ -21,7 +21,19 @@
                   ]
                 },
                 "errorId": "cab2287e-e1b0-4bf1-aebc-ccef9fe2fed8"
-            }
+            },
+            "path": [
+                "scheduledJobs",
+                "records",
+                32,
+                "primarySource"
+              ],
+            "locations": [
+                {
+                    "line": 11,
+                    "column": 7
+                }
+            ]
         },
         {
             "message": "Requested object was not found",
@@ -41,7 +53,19 @@
                   ]
                 },
                 "errorId": "cab2287e-e1b0-4bf1-aebc-ccef9fe2fed8"
-            }
+            },
+            "path": [
+                "scheduledJobs",
+                "records",
+                32,
+                "primarySource"
+              ],
+            "locations": [
+                {
+                    "line": 11,
+                    "column": 7
+                }
+            ]
         }
     ]
 }
