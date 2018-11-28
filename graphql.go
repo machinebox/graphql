@@ -345,10 +345,6 @@ func (c *Client) executeRequest(gr *graphResponse, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		if retryConfig.Interval > c.retryConfig.Interval {
-			return nil
-		}
-
 		c.logf("<< %s", buf.String())
 
 		err = getGraphQLResp(res.Body, &gr)
@@ -359,16 +355,14 @@ func (c *Client) executeRequest(gr *graphResponse, r *http.Request) error {
 
 		if len(gr.Errors) > 0 {
 			// Check to see if we should retry based on error field
-			if shouldRetry(gr.Errors) {
+			if retryConfig.Interval <= c.retryConfig.Interval && shouldRetry(gr.Errors) {
 				body = buf
-
 				timer := time.NewTimer(time.Duration(gqlRetryConfig.Interval) * time.Second)
-
 				ctx := r.Context()
 
 				select {
 				case <-ctx.Done():
-					return errors.New("Context finished unexpectedly")
+					return ctx.Err()
 
 				case <-timer.C:
 					// Increase interval
