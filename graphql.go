@@ -149,6 +149,7 @@ func (c *Client) sendRequest(retryConfig *RetryConfig, req *http.Request) (*http
 		// Assign request body for new request before retry with a temp buf
 		buf := new(bytes.Buffer)
 		req.Body = ioutil.NopCloser(io.TeeReader(body, buf))
+		c.logf("body buffer: %s", buf.String())
 
 		if req.Context().Err() == context.Canceled {
 			return nil, context.Canceled
