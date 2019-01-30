@@ -33,6 +33,7 @@ package graphql
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -41,6 +42,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"time"
 
 	"github.com/pkg/errors"
@@ -149,7 +151,6 @@ func (c *Client) sendRequest(retryConfig *RetryConfig, req *http.Request) (*http
 		// Assign request body for new request before retry with a temp buf
 		buf := new(bytes.Buffer)
 		req.Body = ioutil.NopCloser(io.TeeReader(body, buf))
-		c.logf("body buffer: %s", buf.String())
 
 		if req.Context().Err() == context.Canceled {
 			return nil, context.Canceled
@@ -169,14 +170,13 @@ func (c *Client) sendRequest(retryConfig *RetryConfig, req *http.Request) (*http
 			}
 		}
 
+		req.Body.Close()
 		// Assign buf back to body
 		body = buf
 
 		if retryConfig.BeforeRetry != nil {
 			retryConfig.BeforeRetry(req, resp, err, tryCount+1)
 		}
-
-		c.Log("Will retry after interval expires")
 
 		// Wait for interval
 		c.logf("Waiting for interval(%f) to expire...", retryConfig.Interval)
@@ -285,6 +285,44 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	return c.runWithJSON(ctx, req, resp)
 }
 
+func (c *Client) getTracer() *httptrace.ClientTrace {
+	trace := &httptrace.ClientTrace{
+		GotConn: func(connInfo httptrace.GotConnInfo) {
+			c.logf("Connection reused? %t", connInfo.Reused)
+			if connInfo.WasIdle {
+				c.logf("Connection idled for: %s", connInfo.IdleTime.String())
+			}
+		},
+		PutIdleConn: func(err error) {
+			if err != nil {
+				c.logf("Connection is returned to idle pool with err: %s", err)
+			}
+		},
+		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
+			if dnsInfo.Err != nil {
+				c.logf("DNS lookup fails with error: %v+", dnsInfo)
+			}
+		},
+		ConnectDone: func(network, addr string, err error) {
+			if err != nil {
+				c.logf("Connection dial fails (network: %s) with error: %s", network, err)
+			}
+		},
+		TLSHandshakeDone: func(connState tls.ConnectionState, err error) {
+			if err != nil {
+				c.logf("TLS handshake (state: %v+) fails with error: %s", connState, err)
+			}
+		},
+		WroteRequest: func(reqInfo httptrace.WroteRequestInfo) {
+			if reqInfo.Err != nil {
+				c.logf("Wrote request fails with error: %s", reqInfo.Err)
+			}
+		},
+	}
+
+	return trace
+}
+
 func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}) error {
 	var requestBody bytes.Buffer
 	requestBodyObj := struct {
@@ -302,10 +340,12 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	gr := &graphResponse{
 		Data: resp,
 	}
+
 	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
 	if err != nil {
 		return err
 	}
+
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
 	for key, value := range c.defaultHeaders {
@@ -317,7 +357,10 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		}
 	}
 	c.logf(">> headers: %v", r.Header)
-	r = r.WithContext(ctx)
+
+	// Get trace
+	trace := c.getTracer()
+	r = r.WithContext(httptrace.WithClientTrace(r.Context(), trace))
 
 	return c.executeRequest(gr, r)
 }
@@ -434,8 +477,10 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		}
 	}
 	c.logf(">> headers: %v", r.Header)
-	r = r.WithContext(ctx)
 
+	// Get trace
+	trace := c.getTracer()
+	r = r.WithContext(httptrace.WithClientTrace(r.Context(), trace))
 	return c.executeRequest(gr, r)
 }
 
