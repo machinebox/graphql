@@ -250,11 +250,20 @@ func ImmediatelyCloseReqBody() ClientOption {
 type ClientOption func(*Client)
 
 type graphErr struct {
-	Message string
+	Message string                 `json:"message,omitempty"`
+	Exts    map[string]interface{} `json:"extensions,omitempty"`
 }
 
 func (e graphErr) Error() string {
 	return "graphql: " + e.Message
+}
+
+func (e graphErr) Extensions() map[string]interface{} {
+	return e.Exts
+}
+
+type ExtendedError interface {
+	Extensions() map[string]interface{}
 }
 
 type graphResponse struct {
