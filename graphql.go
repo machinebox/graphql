@@ -144,7 +144,10 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "decoding response")
 	}
 
-	return gr.Errors
+	if len(gr.Errors) > 0 {
+		return gr.Errors
+	}
+	return nil
 }
 
 func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp interface{}) error {
@@ -212,7 +215,10 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		return errors.Wrap(err, "decoding response")
 	}
 
-	return gr.Errors
+	if len(gr.Errors) > 0 {
+		return gr.Errors
+	}
+	return nil
 }
 
 // WithHTTPClient specifies the underlying http.Client to use when
