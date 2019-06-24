@@ -44,7 +44,7 @@ import (
 
 // Client is a client for interacting with a GraphQL API.
 type Client struct {
-	endpoint         string
+	Endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
 
@@ -60,7 +60,7 @@ type Client struct {
 // NewClient makes a new Client capable of making GraphQL requests.
 func NewClient(endpoint string, opts ...ClientOption) *Client {
 	c := &Client{
-		endpoint: endpoint,
+		Endpoint: endpoint,
 		Log:      func(string) {},
 	}
 	for _, optionFunc := range opts {
@@ -113,7 +113,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	gr := &graphResponse{
 		Data: resp,
 	}
-	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
+	r, err := http.NewRequest(http.MethodPost, c.Endpoint, &requestBody)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	gr := &graphResponse{
 		Data: resp,
 	}
-	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
+	r, err := http.NewRequest(http.MethodPost, c.Endpoint, &requestBody)
 	if err != nil {
 		return err
 	}
