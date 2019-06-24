@@ -45,7 +45,7 @@ import (
 // Client is a client for interacting with a GraphQL API.
 type Client struct {
 	endpoint         string
-	httpClient       *http.Client
+	httpClient       httpDoer
 	useMultipartForm bool
 
 	// closeReq will close the request body immediately allowing for reuse of client
@@ -218,7 +218,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 // WithHTTPClient specifies the underlying http.Client to use when
 // making requests.
 //  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
-func WithHTTPClient(httpclient *http.Client) ClientOption {
+func WithHTTPClient(httpclient httpDoer) ClientOption {
 	return func(client *Client) {
 		client.httpClient = httpclient
 	}
@@ -261,7 +261,7 @@ func (e graphErrs) Error() string {
 }
 
 type graphErr struct {
-	Message string
+	Message string `json:"message"`
 }
 
 func (e graphErr) Error() string {
@@ -269,8 +269,8 @@ func (e graphErr) Error() string {
 }
 
 type graphResponse struct {
-	Data   interface{}
-	Errors graphErrs
+	Data   interface{} `json:"data"`
+	Errors graphErrs   `json:"errors"`
 }
 
 // Request is a GraphQL request.
@@ -332,4 +332,8 @@ type File struct {
 	Field string
 	Name  string
 	R     io.Reader
+}
+
+type httpDoer interface {
+	Do(req *http.Request) (*http.Response, error)
 }
