@@ -35,11 +35,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"mime/multipart"
 	"net/http"
-
-	"github.com/pkg/errors"
+	"strings"
 )
 
 // Client is a client for interacting with a GraphQL API.
@@ -143,11 +143,8 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		}
 		return errors.Wrap(err, "decoding response")
 	}
-	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
-	}
-	return nil
+
+	return gr.Errors
 }
 
 func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp interface{}) error {
@@ -214,11 +211,8 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		}
 		return errors.Wrap(err, "decoding response")
 	}
-	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
-	}
-	return nil
+
+	return gr.Errors
 }
 
 // WithHTTPClient specifies the underlying http.Client to use when
@@ -249,6 +243,23 @@ func ImmediatelyCloseReqBody() ClientOption {
 // modify the behaviour of the Client.
 type ClientOption func(*Client)
 
+type graphErrs []graphErr
+
+func (e graphErrs) Error() string {
+	if len(e) == 1 {
+		return fmt.Sprintf("1 error occurred:\n\t* %s\n\n", e[0])
+	}
+
+	points := make([]string, len(e))
+	for i, err := range e {
+		points[i] = fmt.Sprintf("* %s", err)
+	}
+
+	return fmt.Sprintf(
+		"%d errors occurred:\n\t%s\n\n",
+		len(e), strings.Join(points, "\n\t"))
+}
+
 type graphErr struct {
 	Message string
 }
@@ -259,7 +270,7 @@ func (e graphErr) Error() string {
 
 type graphResponse struct {
 	Data   interface{}
-	Errors []graphErr
+	Errors graphErrs
 }
 
 // Request is a GraphQL request.
