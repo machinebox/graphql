@@ -21,6 +21,14 @@ $ go get github.com/machinebox/graphql
 ```go
 import "context"
 
+type Items struct {
+    Key  string  `json:"key"`
+}
+
+type ResponseStruct struct {
+    Items []Items   `json:"items"`
+}
+
 // create a client (safe to share across requests)
 client := graphql.NewClient("https://machinebox.io/graphql")
 
@@ -49,7 +57,11 @@ var respData ResponseStruct
 if err := client.Run(ctx, req, &respData); err != nil {
     log.Fatal(err)
 }
+
+fmt.Println(respData.Items[0].Key)
 ```
+
+The response struct does not need the data field as client.Run expects GraphQL will always return data.
 
 ### File support via multipart form data
 
