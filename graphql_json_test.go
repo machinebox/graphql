@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,7 +93,8 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(len(err.(graphErrs)), 1)
+	is.True(strings.Contains(err.Error(), "graphql: miscellaneous message as to why the the request was bad"))
 }
 
 func TestQueryJSON(t *testing.T) {
