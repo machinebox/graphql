@@ -49,11 +49,9 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
-
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
-	outputRawJson bool
-	generateStruct bool
+	GenerateStruct bool
 
 	// Log is called with various debug information.
 	// To log to standard out, use:
@@ -141,15 +139,13 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	if _, err := io.Copy(&buf, res.Body); err != nil {
 		return errors.Wrap(err, "reading body")
 	}
+	_ = json.Indent(&fmted, buf.Bytes(), "", "    ")
+	c.logf("%s", fmted.String())
 
-	if c.outputRawJson {
-		_ = json.Indent(&fmted,buf.Bytes(),"","    ")
-		c.logf("%s", fmted.String())
-	}
-	if c.generateStruct{
+	if c.GenerateStruct {
 		var b bytes.Buffer
-		bufCopy :=bytes.NewBuffer(buf.Bytes())
-		err = read(bufCopy,&b)
+		// 	bufCopy :=bytes.NewBuffer(buf.Bytes())
+		err = read(&fmted, &b)
 		if err != nil {
 			return errors.Wrap(err, "while generating struct")
 		}

@@ -67,8 +67,7 @@ func TestSimpleJsonStructGeneration(t *testing.T) {
 	ctx := context.Background()
 	client := NewClient(srv.URL)
 	client.Log = func(s string) { log.Println(s) }
-	client.outputRawJson = true
-	client.generateStruct = true
+	client.GenerateStruct = true
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	responseData := SimpleResponse{}
