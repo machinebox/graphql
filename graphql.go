@@ -28,6 +28,9 @@
 // To specify your own http.Client, use the WithHTTPClient option:
 //  httpclient := &http.Client{}
 //  client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
+
+// the code in this file is derived from the machinebox graphql project code and subject to licensing terms in included APACHE_LICENSE
+
 package graphql
 
 import (
@@ -35,11 +38,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"mime/multipart"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 // Client is a client for interacting with a GraphQL API.
@@ -50,6 +52,8 @@ type Client struct {
 
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
+	outputRawJson bool
+	generateStruct bool
 
 	// Log is called with various debug information.
 	// To log to standard out, use:
@@ -133,10 +137,27 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	defer res.Body.Close()
 	var buf bytes.Buffer
+	var fmted bytes.Buffer
 	if _, err := io.Copy(&buf, res.Body); err != nil {
 		return errors.Wrap(err, "reading body")
 	}
-	c.logf("<< %s", buf.String())
+
+	if c.outputRawJson {
+		_ = json.Indent(&fmted,buf.Bytes(),"","    ")
+		c.logf("%s", fmted.String())
+	}
+	if c.generateStruct{
+		var b bytes.Buffer
+		bufCopy :=bytes.NewBuffer(buf.Bytes())
+		err = read(bufCopy,&b)
+		if err != nil {
+			return errors.Wrap(err, "while generating struct")
+		}
+		c.logf("%s",&b)
+
+	}
+
+
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		if res.StatusCode != http.StatusOK {
 			return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)

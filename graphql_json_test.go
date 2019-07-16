@@ -11,6 +11,13 @@ import (
 
 	"github.com/matryer/is"
 )
+// the code in this file is derived from the machinebox graphql project code and subject to licensing terms in included APACHE_LICENSE
+
+type SimpleResponse struct {
+	Data struct {
+		Something string `json:"something"`
+	} `json:"data"`
+}
 
 func TestDoJSON(t *testing.T) {
 	is := is.New(t)
@@ -31,7 +38,6 @@ func TestDoJSON(t *testing.T) {
 
 	ctx := context.Background()
 	client := NewClient(srv.URL)
-
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
@@ -40,6 +46,37 @@ func TestDoJSON(t *testing.T) {
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
 }
+
+func TestSimpleJsonStructGeneration(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		b, err := ioutil.ReadAll(r.Body)
+		is.NoErr(err)
+		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
+		io.WriteString(w, `{
+			"data": {
+				"something": "yes"
+			}
+		}`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL)
+	client.Log = func(s string) { log.Println(s) }
+	client.outputRawJson = true
+	client.generateStruct = true
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	responseData := SimpleResponse{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.NoErr(err)
+}
+
+
 
 func TestDoJSONServerError(t *testing.T) {
 	is := is.New(t)
