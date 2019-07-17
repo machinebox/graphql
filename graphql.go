@@ -52,7 +52,8 @@ type Client struct {
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
 	// allow clients access to raw result for post processing such as struct literal generation
-	ProcessResult func(r io.Reader) error
+	ProcessResult    func(r io.Reader) error
+	IndentLoggedJson bool
 
 	// Log is called with various debug information.
 	// To log to standard out, use:
@@ -135,24 +136,24 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return err
 	}
 	defer res.Body.Close()
+	//
 	var buf bytes.Buffer
-	var fmted bytes.Buffer
 	if _, err := io.Copy(&buf, res.Body); err != nil {
 		return errors.Wrap(err, "reading body")
 	}
-	_ = json.Indent(&fmted, buf.Bytes(), "", "    ")
-	c.logf("%s", fmted.String())
 
-	if c.ProcessResult != nil  {
-		var b bytes.Buffer
-		// 	bufCopy :=bytes.NewBuffer(buf.Bytes())
-		 err = c.ProcessResult(&fmted)
-		if err != nil {
-			return errors.Wrap(err, "while processing  json result")
-		}
-		c.logf("%s",&b)
+	// suport processResult Hook and tie indenting  of json as well as post processing hooks to presence of client supplied logging function
+
+	var fmted bytes.Buffer
+	if c.IndentLoggedJson {
+		_ = json.Indent(&fmted, buf.Bytes(), "", "    ")
+		c.logf("%s", fmted.String())
 	}
 
+	err = c.ProcessResult(bytes.NewBuffer(buf.Bytes()))
+	if err != nil {
+		return errors.Wrap(err, "while processing  json result")
+	}
 
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		if res.StatusCode != http.StatusOK {
@@ -255,7 +256,7 @@ func UseMultipartForm() ClientOption {
 	}
 }
 
-//ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
+// ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
 func ImmediatelyCloseReqBody() ClientOption {
 	return func(client *Client) {
 		client.closeReq = true

@@ -1,18 +1,16 @@
 package graphql
 
 import (
+	"bytes"
 	"context"
-	"github.com/mathew-bowersox/jflect"
+	"github.com/matryer/is"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
-	"log"
-
-	"github.com/matryer/is"
 )
 // the code in this file is derived from the machinebox graphql project code and subject to licensing terms in included APACHE_LICENSE
 
@@ -50,39 +48,47 @@ func TestDoJSON(t *testing.T) {
 	is.Equal(responseData["something"], "yes")
 }
 
-func TestSimpleJsonStructGeneration(t *testing.T) {
+func TestProcessResultFunc(t *testing.T) {
 	is := is.New(t)
 	var calls int
+	const res = `{ "data": { "something": "yes" } }`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		is.Equal(r.Method, http.MethodPost)
 		b, err := ioutil.ReadAll(r.Body)
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
-		io.WriteString(w, `{
-			"data": {
-				"something": "yes"
-			}
-		}`)
+		io.WriteString(w, res)
 	}))
 	defer srv.Close()
-
 	ctx := context.Background()
 	client := NewClient(srv.URL)
+	// enable / disable logging
 	client.Log = func(s string) { log.Println(s) }
-	strNme := "Results"
-    client.ProcessResult = func (r io.Reader) error {
+	client.IndentLoggedJson = true
+
+    /*
+        slightly modified fork of the jflect command line tool to allow for usage as an api
+        "github.com/mathew-bowersox/jflect"
+
+        example of processing the results json into a struct literal
+        strNme := "Results"
+        client.ProcessResult = func (r io.Reader) error {
     	err := generate.Generate(r, os.Stdout, &strNme)
     	return err
-    }
+    }*/
+ 	client.ProcessResult = func (r io.Reader) error {
+	    b := new(bytes.Buffer)
+		 _ ,err := io.Copy(b,r)
+		 is.True(res == b.String())
+		 return err
+	}
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	responseData := SimpleResponse{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.NoErr(err)
 }
-
-
 
 func TestDoJSONServerError(t *testing.T) {
 	is := is.New(t)
@@ -175,7 +181,6 @@ func TestQueryJSON(t *testing.T) {
 
 func TestHeader(t *testing.T) {
 	is := is.New(t)
-
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
