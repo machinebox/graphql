@@ -2,12 +2,15 @@ package graphql
 
 import (
 	"context"
+	"github.com/mathew-bowersox/jflect"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
+	"log"
 
 	"github.com/matryer/is"
 )
@@ -67,7 +70,11 @@ func TestSimpleJsonStructGeneration(t *testing.T) {
 	ctx := context.Background()
 	client := NewClient(srv.URL)
 	client.Log = func(s string) { log.Println(s) }
-	client.GenerateStruct = true
+	strNme := "Results"
+    client.ProcessResult = func (r io.Reader) error {
+    	err := generate.Generate(r, os.Stdout, &strNme)
+    	return err
+    }
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	responseData := SimpleResponse{}

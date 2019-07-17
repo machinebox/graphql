@@ -51,7 +51,8 @@ type Client struct {
 	useMultipartForm bool
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
-	GenerateStruct bool
+	// allow clients access to raw result for post processing such as struct literal generation
+	ProcessResult func(r io.Reader) error
 
 	// Log is called with various debug information.
 	// To log to standard out, use:
@@ -142,15 +143,14 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	_ = json.Indent(&fmted, buf.Bytes(), "", "    ")
 	c.logf("%s", fmted.String())
 
-	if c.GenerateStruct {
+	if c.ProcessResult != nil  {
 		var b bytes.Buffer
 		// 	bufCopy :=bytes.NewBuffer(buf.Bytes())
-		err = read(&fmted, &b)
+		 err = c.ProcessResult(&fmted)
 		if err != nil {
-			return errors.Wrap(err, "while generating struct")
+			return errors.Wrap(err, "while processing  json result")
 		}
 		c.logf("%s",&b)
-
 	}
 
 
