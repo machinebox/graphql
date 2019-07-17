@@ -142,17 +142,22 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "reading body")
 	}
 
-	// suport processResult Hook and tie indenting  of json as well as post processing hooks to presence of client supplied logging function
+	// suport  indenting
 
 	var fmted bytes.Buffer
 	if c.IndentLoggedJson {
 		_ = json.Indent(&fmted, buf.Bytes(), "", "    ")
 		c.logf("%s", fmted.String())
+	} else {
+		c.logf("results: %s", buf.String())
 	}
 
-	err = c.ProcessResult(bytes.NewBuffer(buf.Bytes()))
-	if err != nil {
-		return errors.Wrap(err, "while processing  json result")
+	// support ProcessResult client supplied function if not nil
+	if c.ProcessResult != nil {
+		err = c.ProcessResult(bytes.NewBuffer(buf.Bytes()))
+		if err != nil {
+			return errors.Wrap(err, "while processing  json result")
+		}
 	}
 
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
