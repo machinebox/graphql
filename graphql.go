@@ -51,14 +51,14 @@ type Client struct {
 	useMultipartForm bool
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
-	// allow clients access to raw result for post processing such as struct literal generation
+	// allow clients access to raw result for post processing such as struct literal generation, adding a query cache etc.
 	ProcessResult    func(r io.Reader) error
-	IndentLoggedJson bool
-
 	// Log is called with various debug information.
 	// To log to standard out, use:
 	//  client.Log = func(s string) { log.Println(s) }
 	Log func(s string)
+	// if a log function is supplied this flag will control weather json is indented or not
+	IndentLoggedJson bool
 }
 
 // NewClient makes a new Client capable of making GraphQL requests.

@@ -66,7 +66,7 @@ For usage example see  method TestProcessResultFunc in file graphql_json_test.go
 client := NewClient(srv.URL)
 	// enable / disable logging
 	client.Log = func(s string) { log.Println(s) }
-	// we like our json pretty
+	// we like our json pretty so this feature was added
 	client.IndentLoggedJson = true
 
     /*
