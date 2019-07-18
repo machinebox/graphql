@@ -28,6 +28,9 @@
 // To specify your own http.Client, use the WithHTTPClient option:
 //  httpclient := &http.Client{}
 //  client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
+
+// the code in this file is derived from the machinebox graphql project code and subject to licensing terms in included APACHE_LICENSE
+
 package graphql
 
 import (
@@ -35,11 +38,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"mime/multipart"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 // Client is a client for interacting with a GraphQL API.
@@ -47,14 +49,16 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
-
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
-
+	// allow clients access to raw result for post processing such as struct literal generation, adding a query cache etc.
+	ProcessResult    func(r io.Reader) error
 	// Log is called with various debug information.
 	// To log to standard out, use:
 	//  client.Log = func(s string) { log.Println(s) }
 	Log func(s string)
+	// if a log function is supplied this flag will control weather json is indented or not
+	IndentLoggedJson bool
 }
 
 // NewClient makes a new Client capable of making GraphQL requests.
@@ -132,11 +136,29 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return err
 	}
 	defer res.Body.Close()
+	//
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, res.Body); err != nil {
 		return errors.Wrap(err, "reading body")
 	}
-	c.logf("<< %s", buf.String())
+
+	// support  indenting
+	if c.IndentLoggedJson {
+		var fmted bytes.Buffer
+		_ = json.Indent(&fmted, buf.Bytes(), "", "    ")
+		c.logf("%s", fmted.String())
+	} else {
+		c.logf("results: %s", buf.String())
+	}
+
+	// support ProcessResult client supplied function if not nil
+	if c.ProcessResult != nil {
+		err = c.ProcessResult(bytes.NewBuffer(buf.Bytes()))
+		if err != nil {
+			return errors.Wrap(err, "while processing  json result")
+		}
+	}
+
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		if res.StatusCode != http.StatusOK {
 			return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)
@@ -238,7 +260,7 @@ func UseMultipartForm() ClientOption {
 	}
 }
 
-//ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
+// ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
 func ImmediatelyCloseReqBody() ClientOption {
 	return func(client *Client) {
 		client.closeReq = true

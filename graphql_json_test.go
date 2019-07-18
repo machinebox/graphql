@@ -1,16 +1,24 @@
 package graphql
 
 import (
+	"bytes"
 	"context"
+	"github.com/matryer/is"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/matryer/is"
 )
+// the code in this file is derived from the machinebox graphql project code and subject to licensing terms in included APACHE_LICENSE
+
+type SimpleResponse struct {
+	Data struct {
+		Something string `json:"something"`
+	} `json:"data"`
+}
 
 func TestDoJSON(t *testing.T) {
 	is := is.New(t)
@@ -31,7 +39,6 @@ func TestDoJSON(t *testing.T) {
 
 	ctx := context.Background()
 	client := NewClient(srv.URL)
-
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
@@ -39,6 +46,51 @@ func TestDoJSON(t *testing.T) {
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
+}
+
+func TestProcessResultFunc(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	const res = `{ "data": { "something": "yes" } }`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		b, err := ioutil.ReadAll(r.Body)
+		is.NoErr(err)
+		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
+		io.WriteString(w, res)
+	}))
+	defer srv.Close()
+	ctx := context.Background()
+	client := NewClient(srv.URL)
+	// enable / disable logging
+	client.Log = func(s string) { log.Println(s) }
+	client.IndentLoggedJson = true
+
+    /*
+        example of a usage to code generate target response struct
+        // slightly modified fork of the jflect command line tool to allow for usage as an api
+        "github.com/mathew-bowersox/jflect"
+
+        // example of processing the results json into a struct literal
+        strNme := "Results"
+        client.ProcessResult = func (r io.Reader) error {
+    	err := generate.Generate(r, os.Stdout, &strNme)
+    	return err
+    }*/
+
+    // here we will test the supllied reader contains correct results
+ 	client.ProcessResult = func (r io.Reader) error {
+	    b := new(bytes.Buffer)
+		 _ ,err := io.Copy(b,r)
+		 is.True(res == b.String())
+		 return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	responseData := SimpleResponse{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.NoErr(err)
 }
 
 func TestDoJSONServerError(t *testing.T) {
@@ -132,7 +184,6 @@ func TestQueryJSON(t *testing.T) {
 
 func TestHeader(t *testing.T) {
 	is := is.New(t)
-
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++

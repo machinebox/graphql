@@ -60,6 +60,36 @@ use multipart form data instead using the `UseMultipartForm` option when you cre
 client := graphql.NewClient("https://machinebox.io/graphql", graphql.UseMultipartForm())
 ```
 
+### Access to raw json response via user supplied function in client
+For usage example see  method TestProcessResultFunc in file graphql_json_test.go
+```go
+client := NewClient(srv.URL)
+	// enable / disable logging
+	client.Log = func(s string) { log.Println(s) }
+	// we like our json pretty so this feature was added
+	client.IndentLoggedJson = true
+
+    /*
+        example of a usage to code generate target response struct
+        // slightly modified fork of the jflect command line tool to allow for usage as an api
+        "github.com/mathew-bowersox/jflect"
+
+        // example of processing the results json into a struct literal
+        strNme := "Results"
+        client.ProcessResult = func (r io.Reader) error {
+    	err := generate.Generate(r, os.Stdout, &strNme)
+    	return err
+    }*/
+
+    // here we will test the supplied reader contains correct results
+ 	client.ProcessResult = func (r io.Reader) error {
+	    b := new(bytes.Buffer)
+		 _ ,err := io.Copy(b,r)
+		 is.True(res == b.String())
+		 return err
+	}
+```
+
 For more information, [read the godoc package documentation](http://godoc.org/github.com/machinebox/graphql) or the [blog post](https://blog.machinebox.io/a-graphql-client-library-for-go-5bffd0455878).
 
 ## Thanks
