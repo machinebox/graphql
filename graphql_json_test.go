@@ -68,15 +68,18 @@ func TestProcessResultFunc(t *testing.T) {
 	client.IndentLoggedJson = true
 
     /*
-        slightly modified fork of the jflect command line tool to allow for usage as an api
+        example of a usage to code generate target response struct
+        // slightly modified fork of the jflect command line tool to allow for usage as an api
         "github.com/mathew-bowersox/jflect"
 
-        example of processing the results json into a struct literal
+        // example of processing the results json into a struct literal
         strNme := "Results"
         client.ProcessResult = func (r io.Reader) error {
     	err := generate.Generate(r, os.Stdout, &strNme)
     	return err
     }*/
+
+    // here we will test the supllied reader contains correct results
  	client.ProcessResult = func (r io.Reader) error {
 	    b := new(bytes.Buffer)
 		 _ ,err := io.Copy(b,r)

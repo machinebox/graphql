@@ -142,10 +142,9 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "reading body")
 	}
 
-	// suport  indenting
-
-	var fmted bytes.Buffer
+	// support  indenting
 	if c.IndentLoggedJson {
+		var fmted bytes.Buffer
 		_ = json.Indent(&fmted, buf.Bytes(), "", "    ")
 		c.logf("%s", fmted.String())
 	} else {
