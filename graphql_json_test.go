@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -158,4 +159,40 @@ func TestHeader(t *testing.T) {
 	is.Equal(calls, 1)
 
 	is.Equal(resp.Value, "some data")
+}
+
+func TestBeforeRequest(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if user, pwd, _ := r.BasicAuth(); user == "user" && pwd == "pwd" {
+			io.WriteString(w, `{"data": {"something": "yes"}}`)
+			return
+		}
+		io.WriteString(w, `{"errors": [{"message": "Unauthorized"}]}`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL)
+
+	client.BeforeRequest = func(r *http.Request) error {
+		r.SetBasicAuth("user", "pwd")
+		return nil
+	}
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{}, &responseData)
+	is.NoErr(err)
+	is.Equal(calls, 1)
+	is.Equal(responseData["something"], "yes")
+
+	responseData = map[string]interface{}{}
+	expectedErr := errors.New("test error")
+	client.BeforeRequest = func(r *http.Request) error {
+		return expectedErr
+	}
+	err = client.Run(ctx, &Request{}, &responseData)
+	is.Equal(err, expectedErr)
+	is.Equal(calls, 1)
 }
