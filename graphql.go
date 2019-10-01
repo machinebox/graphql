@@ -38,6 +38,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -79,8 +80,17 @@ func (c *Client) logf(format string, args ...interface{}) {
 // Run executes the query and unmarshals the response from the data field
 // into the response object.
 // Pass in a nil response object to skip response parsing.
-// If the request fails or the server returns an error, the first error
-// will be returned.
+// If the request fails or the server returns an error, the returned error will
+// be of type Errors. Type assert to get the underlying errors:
+//   err := client.Run(..)
+//   if err != nil {
+//     if gqlErrors, ok := err.(graphql.Errors); ok {
+//       for _, e := range gqlErrors {
+//         // Server returned an error
+//       }
+//     }
+//     // Another error occurred
+//   }
 func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
 	select {
 	case <-ctx.Done():
@@ -144,8 +154,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "decoding response")
 	}
 	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
+		return gr.Errors
 	}
 	return nil
 }
@@ -215,8 +224,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		return errors.Wrap(err, "decoding response")
 	}
 	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
+		return gr.Errors
 	}
 	return nil
 }
@@ -249,17 +257,51 @@ func ImmediatelyCloseReqBody() ClientOption {
 // modify the behaviour of the Client.
 type ClientOption func(*Client)
 
-type graphErr struct {
-	Message string
+// Errors contains all the errors that were returned by the GraphQL server.
+type Errors []Error
+
+func (ee Errors) Error() string {
+	if len(ee) == 0 {
+		return "no errors"
+	}
+	errs := make([]string, len(ee))
+	for i, e := range ee {
+		errs[i] = e.Message
+	}
+	return "graphql: " + strings.Join(errs, "; ")
 }
 
-func (e graphErr) Error() string {
+// An Error contains error information returned by the GraphQL server.
+type Error struct {
+	// Message contains the error message.
+	Message string
+	// Locations contains the locations in the GraphQL document that caused the
+	// error if the error can be associated to a particular point in the
+	// requested GraphQL document.
+	Locations []Location
+	// Path contains the key path of the response field which experienced the
+	// error. This allows clients to identify whether a nil result is
+	// intentional or caused by a runtime error.
+	Path []interface{}
+	// Extensions may contain additional fields set by the GraphQL service,
+	// such as	an error code.
+	Extensions map[string]interface{}
+}
+
+// A Location is a location in the GraphQL query that resulted in an error.
+// The location may be returned as part of an error response.
+type Location struct {
+	Line   int
+	Column int
+}
+
+func (e Error) Error() string {
 	return "graphql: " + e.Message
 }
 
 type graphResponse struct {
 	Data   interface{}
-	Errors []graphErr
+	Errors Errors
 }
 
 // Request is a GraphQL request.

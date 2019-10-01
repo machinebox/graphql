@@ -79,6 +79,8 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 		io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
+			}, {
+				"message": "another error"
 			}]
 		}`)
 	}))
@@ -92,7 +94,52 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad; another error")
+}
+
+func TestDoJSONBadRequestErrDetails(t *testing.T) {
+	is := is.New(t)
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		is.Equal(r.Method, http.MethodPost)
+		b, err := ioutil.ReadAll(r.Body)
+		is.NoErr(err)
+		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, `{
+			"errors": [{
+				"message": "Name for character with ID 1002 could not be fetched.",
+				"locations": [ { "line": 6, "column": 7 } ],
+				"path": [ "hero", "heroFriends", 1, "name" ],
+				"extensions": {
+					"code": "CAN_NOT_FETCH_BY_ID",
+					"timestamp": "Fri Feb 9 14:33:09 UTC 2018"
+				}
+			}]
+		}`)
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	client := NewClient(srv.URL)
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	var responseData map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	is.Equal(calls, 1) // calls
+	errs, ok := err.(Errors)
+	is.True(ok)
+	is.Equal(len(errs), 1)
+	e := errs[0]
+	is.Equal(e.Message, "Name for character with ID 1002 could not be fetched.")
+	is.Equal(e.Locations, []Location{{Line: 6, Column: 7}})
+	is.Equal(e.Path, []interface{}{"hero", "heroFriends", 1.0, "name"})
+	is.Equal(e.Extensions, map[string]interface{}{
+		"code":      "CAN_NOT_FETCH_BY_ID",
+		"timestamp": "Fri Feb 9 14:33:09 UTC 2018",
+	})
 }
 
 func TestQueryJSON(t *testing.T) {
