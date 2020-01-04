@@ -159,3 +159,81 @@ func TestHeader(t *testing.T) {
 
 	is.Equal(resp.Value, "some data")
 }
+
+func TestErrors(t *testing.T) {
+	is := is.New(t)
+	type errorSuit struct {
+		response        string
+		statusCode      int
+		expectedMessage string
+		expected        GraphError
+	}
+	var suits = []errorSuit{
+		errorSuit{
+			response: `{
+				"errors": [
+				  {
+					"message": "Name for character with ID 1002 could not be fetched.",
+					"locations": [ { "line": 6, "column": 7 } ],
+					"path": [ "hero", "heroFriends", 1, "name" ],
+					"extensions": {
+					  "code": "CAN_NOT_FETCH_BY_ID",
+					  "timestamp": "Fri Feb 9 14:33:09 UTC 2018"
+					}
+				  }
+				]
+			  }`,
+			statusCode:      404,
+			expectedMessage: "graphql: Name for character with ID 1002 could not be fetched.",
+			expected: GraphError{
+				Message: "Name for character with ID 1002 could not be fetched.",
+				Locations: []Location{
+					Location{Line: 6, Column: 7},
+				},
+				Path: []interface{}{"hero", "heroFriends", float64(1), "name"},
+				Extensions: map[string]interface{}{
+					"code":      "CAN_NOT_FETCH_BY_ID",
+					"timestamp": "Fri Feb 9 14:33:09 UTC 2018",
+				},
+			},
+		},
+		errorSuit{
+			response: `{
+				"errors": [
+					{
+						"message": "Server error"
+					}
+				]
+			}`,
+			statusCode:      500,
+			expectedMessage: "graphql: Server error",
+			expected: GraphError{
+				Message: "Server error",
+			},
+		},
+	}
+	for _, suit := range suits {
+		func() {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(suit.statusCode)
+				_, err := io.WriteString(w, suit.response)
+				is.NoErr(err)
+			}))
+			defer srv.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			defer cancel()
+			client := NewClient(srv.URL)
+			req := NewRequest("query {}")
+			var resp struct {
+				Value string
+			}
+			err := client.Run(ctx, req, &resp)
+			if err != nil {
+				is.Equal(err.Error(), suit.expectedMessage)
+				is.Equal(err, suit.expected)
+			} else {
+				is.Fail()
+			}
+		}()
+	}
+}
