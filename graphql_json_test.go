@@ -166,6 +166,7 @@ func TestErrors(t *testing.T) {
 		response        string
 		statusCode      int
 		expectedMessage string
+		expected        GraphError
 	}
 	var suits = []errorSuit{
 		errorSuit{
@@ -184,6 +185,17 @@ func TestErrors(t *testing.T) {
 			  }`,
 			statusCode:      404,
 			expectedMessage: "graphql: Name for character with ID 1002 could not be fetched.",
+			expected: GraphError{
+				Message: "Name for character with ID 1002 could not be fetched.",
+				Locations: []Location{
+					Location{Line: 6, Column: 7},
+				},
+				Path: []interface{}{"hero", "heroFriends", float64(1), "name"},
+				Extensions: map[string]interface{}{
+					"code":      "CAN_NOT_FETCH_BY_ID",
+					"timestamp": "Fri Feb 9 14:33:09 UTC 2018",
+				},
+			},
 		},
 		errorSuit{
 			response: `{
@@ -195,6 +207,9 @@ func TestErrors(t *testing.T) {
 			}`,
 			statusCode:      500,
 			expectedMessage: "graphql: Server error",
+			expected: GraphError{
+				Message: "Server error",
+			},
 		},
 	}
 	for _, suit := range suits {
@@ -215,6 +230,7 @@ func TestErrors(t *testing.T) {
 			err := client.Run(ctx, req, &resp)
 			if err != nil {
 				is.Equal(err.Error(), suit.expectedMessage)
+				is.Equal(err, suit.expected)
 			} else {
 				is.Fail()
 			}
