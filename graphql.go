@@ -257,6 +257,24 @@ func (e graphErr) Error() string {
 	return "graphql: " + e.Message
 }
 
+// Location represents the location of a error
+type Location struct {
+	Line   int `json:"line,omitempty"`
+	Column int `json:"column,omitempty"`
+}
+
+// GraphError represents the standard graphql error described in https://graphql.github.io/graphql-spec/June2018/#sec-Errors
+type GraphError struct {
+	Message    string                 `json:"message"`
+	Path       []interface{}          `json:"path,omitempty"`
+	Locations  []Location             `json:"locations,omitempty"`
+	Extensions map[string]interface{} `json:"extensions,omitempty"`
+}
+
+func (e GraphError) Error() string {
+	return fmt.Sprintf("graphql: %s", e.Message)
+}
+
 type graphResponse struct {
 	Data   interface{}
 	Errors []graphErr
