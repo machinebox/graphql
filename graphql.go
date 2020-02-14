@@ -342,7 +342,7 @@ type SubscriptionClient struct {
 type subscriptionMessageType string
 
 const (
-	gqp_init                  subscriptionMessageType = "connection_init"
+	gql_connection_init       subscriptionMessageType = "connection_init"
 	gql_start                                         = "start"
 	gql_stop                                          = "stop"
 	gql_connection_ack                                = "connection_ack"
@@ -355,8 +355,8 @@ const (
 )
 
 type subscriptionMessage struct {
-	Payload *json.RawMessage        `json:"payload"`
-	Id      *string                 `json:"id"`
+	Payload *json.RawMessage        `json:"payload,omitempty"`
+	Id      *string                 `json:"id,omitempty"`
 	Type    subscriptionMessageType `json:"type"`
 }
 
@@ -379,6 +379,15 @@ func (c * Client) SubscriptionClient(ctx context.Context, header http.Header) (*
 	}
 
 	var msg subscriptionMessage
+
+	msg.Type = gql_connection_init
+	emptyPayload := json.RawMessage("{}")
+	msg.Payload = &emptyPayload
+	err = conn.WriteJSON(msg)
+	if err != nil {
+		return nil, err
+	}
+
 	err = conn.ReadJSON(&msg)
 	if err != nil {
 		return nil, err
@@ -481,7 +490,6 @@ func (c * SubscriptionClient) Subscribe(req * Request) (Subscription, error) {
 	if err := json.NewEncoder(&requestBody).Encode(requestBodyObj); err != nil {
 		return nil, errors.Wrap(err, "encode body")
 	}
-
 	id := strconv.Itoa(c.subIdGen)
 	c.subIdGen ++
 

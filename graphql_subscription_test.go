@@ -27,6 +27,9 @@ func TestSub(t *testing.T) {
         var pl subscriptionMessage
         defer c.Close()
 
+        is.NoErr(c.ReadJSON(&pl))
+        is.Equal(string(pl.Type), string(gql_connection_init))
+
         pl.Type = gql_connection_ack
         is.NoErr(c.WriteJSON(pl))
 
