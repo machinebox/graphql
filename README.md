@@ -49,6 +49,18 @@ var respData ResponseStruct
 if err := client.Run(ctx, req, &respData); err != nil {
     log.Fatal(err)
 }
+
+//subscribe 
+
+subClient, err := client.SubscriptionClient(ctx, req.Header)
+if err != nil {
+    log.Fatal(err)
+}
+
+
+sub, err := subClient.Subscribe(`
+    subscription {
+`)
 ```
 
 ### File support via multipart form data
