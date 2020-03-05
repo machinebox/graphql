@@ -21,6 +21,13 @@ $ go get github.com/machinebox/graphql
 ```go
 import "context"
 
+type ResponseStruct struct {
+    field1 string
+    field2 string
+    field2 string
+    ID     string `json:"_id"` // GQL fields may be renamed as per normal json
+}
+
 // create a client (safe to share across requests)
 client := graphql.NewClient("https://machinebox.io/graphql")
 
@@ -31,6 +38,7 @@ req := graphql.NewRequest(`
             field1
             field2
             field3
+            _id
         }
     }
 `)
