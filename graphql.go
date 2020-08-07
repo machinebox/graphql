@@ -47,6 +47,8 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
+	headerNames      []string
+	headerValues     []string
 
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
@@ -120,6 +122,9 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	r.Close = c.closeReq
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
+	for i, headerName := range c.headerNames {
+		r.Header.Set(headerName, c.headerValues[i])
+	}
 	for key, values := range req.Header {
 		for _, value := range values {
 			r.Header.Add(key, value)
@@ -227,6 +232,14 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 func WithHTTPClient(httpclient *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = httpclient
+	}
+}
+
+// WithHeaders allows to specify one additional header in the request
+func WithHeaders(header, value string) ClientOption {
+	return func(client *Client) {
+		client.headerNames = append(client.headerNames, header)
+		client.headerValues = append(client.headerValues, value)
 	}
 }
 
