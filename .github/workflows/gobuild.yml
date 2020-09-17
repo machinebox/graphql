@@ -72,7 +72,7 @@ jobs:
           cd /tmp && mkdir tools && cd -
           curl -s -L "https://github.com/sonatype-nexus-community/nancy/releases/download/v1.0.0/nancy-linux.amd64-v1.0.0" -o "/tmp/tools/nancy"
           chmod +x /tmp/tools/nancy
-          /tmp/tools/nancy go.sum
+          /tmp/tools/nancy sleuth go.sum
 
   test:
     name: Test
