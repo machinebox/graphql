@@ -112,7 +112,7 @@ func TestDoErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	assert.Nil(t, err)
+	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "graphql: Something went wrong")
 }
 
