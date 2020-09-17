@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -194,16 +195,14 @@ func TestDoNoResponse(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	is := is.New(t)
-
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		query := r.FormValue("query")
-		is.Equal(query, "query {}")
-		is.Equal(r.FormValue("variables"), `{"username":"matryer"}`+"\n")
+		assert.Equal(t, "query {}", query)
+		assert.Equal(t, `{"username":"matryer"}`+"\n", r.FormValue("variables"))
 		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
-		is.NoErr(err)
+		assert.NoError(t, err)
 	}))
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -215,17 +214,17 @@ func TestQuery(t *testing.T) {
 	req.Var("username", "matryer")
 
 	// check variables
-	is.True(req != nil)
-	is.Equal(req.vars["username"], "matryer")
+	assert.NotNil(t, req)
+	assert.Equal(t, req.vars["username"], "matryer")
 
 	var resp struct {
 		Value string
 	}
 	err := client.Run(ctx, req, &resp)
-	is.NoErr(err)
-	is.Equal(calls, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, calls, 1)
 
-	is.Equal(resp.Value, "some data")
+	assert.Equal(t, resp.Value, "some data")
 
 }
 

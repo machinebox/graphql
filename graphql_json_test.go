@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -96,16 +97,14 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 }
 
 func TestQueryJSON(t *testing.T) {
-	is := is.New(t)
-
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		b, err := ioutil.ReadAll(r.Body)
-		is.NoErr(err)
-		is.Equal(string(b), `{"query":"query {}","variables":{"username":"matryer"}}`+"\n")
+		assert.NoError(t, err)
+		assert.Equal(t,  `{"query":"query {}","variables":{"username":"matryer"}}`+"\n", string(b))
 		_, err = io.WriteString(w, `{"data":{"value":"some data"}}`)
-		is.NoErr(err)
+		assert.NoError(t, err)
 	}))
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -117,17 +116,17 @@ func TestQueryJSON(t *testing.T) {
 	req.Var("username", "matryer")
 
 	// check variables
-	is.True(req != nil)
-	is.Equal(req.vars["username"], "matryer")
+	assert.NotNil(t, req)
+	assert.Equal(t,  "matryer", req.vars["username"])
 
 	var resp struct {
 		Value string
 	}
 	err := client.Run(ctx, req, &resp)
-	is.NoErr(err)
-	is.Equal(calls, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, calls)
 
-	is.Equal(resp.Value, "some data")
+	assert.Equal(t, "some data", resp.Value)
 }
 
 func TestHeader(t *testing.T) {
