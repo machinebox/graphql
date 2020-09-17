@@ -1,0 +1,6 @@
+# github.com/matryer/is v1.4.0
+## explicit
+github.com/matryer/is
+# github.com/pkg/errors v0.9.1
+## explicit
+github.com/pkg/errors
