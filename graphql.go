@@ -137,6 +137,8 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "reading body")
 	}
 	c.logf("<< %s", buf.String())
+	bodyStr := buf.String()
+
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		if res.StatusCode != http.StatusOK {
 			return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)
@@ -147,6 +149,17 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		// return first error
 		return gr.Errors[0]
 	}
+
+	// Handle the http status codes before handling response from the graphql endpoint.
+	// If this is not done then !200 status codes will just be ignored without the caller even noticing, instead
+	// the caller just gets back an empty result set, suggesting that the query did not found any result.
+	// The reason for this is that for example in case of a 404,401,403 etc. the request is rejected before
+	// it even hits an graphql handler on the server side.
+	// As a result the response returned by this non graphql component is not compliant to the graphql spec.
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("graphql: server returned a non-200 status code: %v - %v", res.StatusCode, bodyStr)
+	}
+
 	return nil
 }
 
@@ -208,6 +221,8 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		return errors.Wrap(err, "reading body")
 	}
 	c.logf("<< %s", buf.String())
+	bodyStr := buf.String()
+
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		if res.StatusCode != http.StatusOK {
 			return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)
@@ -217,6 +232,16 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	if len(gr.Errors) > 0 {
 		// return first error
 		return gr.Errors[0]
+	}
+
+	// Handle the http status codes before handling response from the graphql endpoint.
+	// If this is not done then !200 status codes will just be ignored without the caller even noticing, instead
+	// the caller just gets back an empty result set, suggesting that the query did not found any result.
+	// The reason for this is that for example in case of a 404,401,403 etc. the request is rejected before
+	// it even hits an graphql handler on the server side.
+	// As a result the response returned by this non graphql component is not compliant to the graphql spec.
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("graphql: server returned a non-200 status code: %v - %v", res.StatusCode, bodyStr)
 	}
 	return nil
 }
