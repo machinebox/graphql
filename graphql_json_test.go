@@ -21,7 +21,7 @@ func TestDoJSON(t *testing.T) {
 		b, err := ioutil.ReadAll(r.Body)
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
@@ -51,7 +51,7 @@ func TestDoJSONServerError(t *testing.T) {
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
 		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, `Internal Server Error`)
+		_, _ = io.WriteString(w, `Internal Server Error`)
 	}))
 	defer srv.Close()
 
@@ -76,7 +76,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
 		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
 			}]
@@ -118,7 +118,7 @@ func TestQueryJSON(t *testing.T) {
 
 	// check variables
 	is.True(req != nil)
-	is.Equal(req.vars["username"], "matryer")
+	is.Equal(req.vars["username"], "matryer") // nolint: staticcheck
 
 	var resp struct {
 		Value string
