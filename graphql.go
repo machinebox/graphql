@@ -45,7 +45,7 @@ import (
 // Client is a client for interacting with a GraphQL API.
 type Client struct {
 	endpoint         string
-	httpClient       *http.Client
+	httpClient       HTTPDo
 	useMultipartForm bool
 
 	// closeReq will close the request body immediately allowing for reuse of client
@@ -55,6 +55,10 @@ type Client struct {
 	// To log to standard out, use:
 	//  client.Log = func(s string) { log.Println(s) }
 	Log func(s string)
+}
+
+type HTTPDo interface {
+	Do(*http.Request) (*http.Response, error)
 }
 
 // NewClient makes a new Client capable of making GraphQL requests.
@@ -224,7 +228,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 // WithHTTPClient specifies the underlying http.Client to use when
 // making requests.
 //  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
-func WithHTTPClient(httpclient *http.Client) ClientOption {
+func WithHTTPClient(httpclient HTTPDo) ClientOption {
 	return func(client *Client) {
 		client.httpClient = httpclient
 	}

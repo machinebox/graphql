@@ -30,7 +30,7 @@ func TestWithClient(t *testing.T) {
 	client := NewClient("", WithHTTPClient(testClient), UseMultipartForm())
 
 	req := NewRequest(``)
-	client.Run(ctx, req, nil)
+	_ = client.Run(ctx, req, nil)
 
 	is.Equal(calls, 1) // calls
 }
@@ -43,7 +43,7 @@ func TestDoUseMultipartForm(t *testing.T) {
 		is.Equal(r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
@@ -70,7 +70,7 @@ func TestImmediatelyCloseReqBody(t *testing.T) {
 		is.Equal(r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
@@ -98,7 +98,7 @@ func TestDoErr(t *testing.T) {
 		is.Equal(r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "Something went wrong"
 			}]
@@ -126,7 +126,7 @@ func TestDoServerErr(t *testing.T) {
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
 		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, `Internal Server Error`)
+		_, _ = io.WriteString(w, `Internal Server Error`)
 	}))
 	defer srv.Close()
 
@@ -149,7 +149,7 @@ func TestDoBadRequestErr(t *testing.T) {
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
 		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
 			}]
@@ -175,7 +175,7 @@ func TestDoNoResponse(t *testing.T) {
 		is.Equal(r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
