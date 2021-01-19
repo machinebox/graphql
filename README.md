@@ -1,5 +1,3 @@
-# graphql [![GoDoc](https://godoc.org/github.com/machinebox/graphql?status.png)](http://godoc.org/github.com/machinebox/graphql) [![Build Status](https://travis-ci.org/machinebox/graphql.svg?branch=master)](https://travis-ci.org/machinebox/graphql) [![Go Report Card](https://goreportcard.com/badge/github.com/machinebox/graphql)](https://goreportcard.com/report/github.com/machinebox/graphql)
-
 Low-level GraphQL client for Go.
 
 * Simple, familiar API
@@ -13,16 +11,18 @@ Low-level GraphQL client for Go.
 Make sure you have a working Go environment. To install graphql, simply run:
 
 ```
-$ go get github.com/machinebox/graphql
+$ go get github.com/konstellation/graphql
 ```
 
 ## Usage
 
 ```go
+packgage "test"
+
 import "context"
 
 // create a client (safe to share across requests)
-client := graphql.NewClient("https://machinebox.io/graphql")
+client := graphql.NewClient("https://konstellation.io/graphql")
 
 // make a request
 req := graphql.NewRequest(`
@@ -57,11 +57,10 @@ By default, the package will send a JSON body. To enable the sending of files, y
 use multipart form data instead using the `UseMultipartForm` option when you create your `Client`:
 
 ```
-client := graphql.NewClient("https://machinebox.io/graphql", graphql.UseMultipartForm())
+client := graphql.NewClient("https://konstellation.io/graphql", graphql.UseMultipartForm())
 ```
 
-For more information, [read the godoc package documentation](http://godoc.org/github.com/machinebox/graphql) or the [blog post](https://blog.machinebox.io/a-graphql-client-library-for-go-5bffd0455878).
+The multipart upload follows the implementation specified here [GraphQL multipart request](https://github.com/jaydenseric/graphql-multipart-request-spec)
 
-## Thanks
-
-Thanks to [Chris Broadfoot](https://github.com/broady) for design help.
+### Note from the developers 
+We forked this from [machinebox-graphql](https://github.com/machinebox/graphql) because the main repo has been abandoned.

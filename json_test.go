@@ -14,18 +14,21 @@ import (
 
 func TestDoJSON(t *testing.T) {
 	is := is.New(t)
+
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		is.Equal(r.Method, http.MethodPost)
 		b, err := ioutil.ReadAll(r.Body)
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
-		io.WriteString(w, `{
+		_, err = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
 		}`)
+		is.NoErr(err)
 	}))
 	defer srv.Close()
 
@@ -34,7 +37,9 @@ func TestDoJSON(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
+
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
@@ -43,7 +48,9 @@ func TestDoJSON(t *testing.T) {
 
 func TestDoJSONServerError(t *testing.T) {
 	is := is.New(t)
+
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		is.Equal(r.Method, http.MethodPost)
@@ -51,8 +58,10 @@ func TestDoJSONServerError(t *testing.T) {
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
 		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, `Internal Server Error`)
+		_, err = io.WriteString(w, `Internal Server Error`)
+		is.NoErr(err)
 	}))
+
 	defer srv.Close()
 
 	ctx := context.Background()
@@ -60,15 +69,20 @@ func TestDoJSONServerError(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
+
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+
 	is.Equal(calls, 1) // calls
 	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
 }
 
 func TestDoJSONBadRequestErr(t *testing.T) {
 	is := is.New(t)
+
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		is.Equal(r.Method, http.MethodPost)
@@ -76,12 +90,14 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
 		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{
+		_, err = io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
 			}]
 		}`)
+		is.NoErr(err)
 	}))
+
 	defer srv.Close()
 
 	ctx := context.Background()
@@ -89,8 +105,11 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
+
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+
 	is.Equal(calls, 1) // calls
 	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
 }
@@ -99,6 +118,7 @@ func TestQueryJSON(t *testing.T) {
 	is := is.New(t)
 
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		b, err := ioutil.ReadAll(r.Body)
@@ -107,8 +127,11 @@ func TestQueryJSON(t *testing.T) {
 		_, err = io.WriteString(w, `{"data":{"value":"some data"}}`)
 		is.NoErr(err)
 	}))
+
 	defer srv.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+
 	defer cancel()
 
 	client := NewClient(srv.URL)
@@ -123,7 +146,9 @@ func TestQueryJSON(t *testing.T) {
 	var resp struct {
 		Value string
 	}
+
 	err := client.Run(ctx, req, &resp)
+
 	is.NoErr(err)
 	is.Equal(calls, 1)
 
@@ -134,6 +159,7 @@ func TestHeader(t *testing.T) {
 	is := is.New(t)
 
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		is.Equal(r.Header.Get("X-Custom-Header"), "123")
@@ -141,7 +167,9 @@ func TestHeader(t *testing.T) {
 		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
 		is.NoErr(err)
 	}))
+
 	defer srv.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -153,6 +181,7 @@ func TestHeader(t *testing.T) {
 	var resp struct {
 		Value string
 	}
+
 	err := client.Run(ctx, req, &resp)
 	is.NoErr(err)
 	is.Equal(calls, 1)

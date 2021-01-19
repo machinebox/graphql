@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matryer/is"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWithClient(t *testing.T) {
-	is := is.New(t)
 	var calls int
+
 	testClient := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			calls++
@@ -29,26 +29,31 @@ func TestWithClient(t *testing.T) {
 	ctx := context.Background()
 	client := NewClient("", WithHTTPClient(testClient), UseMultipartForm())
 
-	req := NewRequest(``)
-	client.Run(ctx, req, nil)
+	req := NewRequest(`mutation test()`)
+	err := client.Run(ctx, req, nil)
+	require.NoError(t, err)
 
-	is.Equal(calls, 1) // calls
+	require.Equal(t, calls, 1) // calls
 }
 
 func TestDoUseMultipartForm(t *testing.T) {
-	is := is.New(t)
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		is.Equal(r.Method, http.MethodPost)
-		query := r.FormValue("query")
-		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		require.Equal(t, r.Method, http.MethodPost)
+		operations := r.FormValue("operations")
+		maps := r.FormValue("map")
+		require.Equal(t, operations, `{"operationName":"test","variables":null,"query":"mutation test()"}`)
+		require.Equal(t, maps, "")
+		_, err := io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
 		}`)
+		require.NoError(t, err)
 	}))
+
 	defer srv.Close()
 
 	ctx := context.Background()
@@ -56,25 +61,30 @@ func TestDoUseMultipartForm(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.NoErr(err)
-	is.Equal(calls, 1) // calls
-	is.Equal(responseData["something"], "yes")
+
+	req := NewRequest(`mutation test()`)
+	err := client.Run(ctx, req, &responseData)
+	require.NoError(t, err)
+	require.Equal(t, calls, 1) // calls
+	require.Equal(t, responseData["something"], "yes")
 }
+
 func TestImmediatelyCloseReqBody(t *testing.T) {
-	is := is.New(t)
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		is.Equal(r.Method, http.MethodPost)
-		query := r.FormValue("query")
-		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		require.Equal(t, r.Method, http.MethodPost)
+		operations := r.FormValue("operations")
+		require.Equal(t, operations, `{"operationName":"test","variables":null,"query":"mutation test()"}`)
+		_, err := io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
 		}`)
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -83,26 +93,30 @@ func TestImmediatelyCloseReqBody(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.NoErr(err)
-	is.Equal(calls, 1) // calls
-	is.Equal(responseData["something"], "yes")
+
+	req := NewRequest(`mutation test()`)
+	err := client.Run(ctx, req, &responseData)
+	require.NoError(t, err)
+	require.Equal(t, calls, 1) // calls
+	require.Equal(t, responseData["something"], "yes")
 }
 
 func TestDoErr(t *testing.T) {
-	is := is.New(t)
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		is.Equal(r.Method, http.MethodPost)
-		query := r.FormValue("query")
-		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		require.Equal(t, r.Method, http.MethodPost)
+		operations := r.FormValue("operations")
+		require.Equal(t, operations, `{"operationName":"test","variables":null,"query":"mutation test()"}`)
+		_, err := io.WriteString(w, `{
 			"errors": [{
 				"message": "Something went wrong"
 			}]
 		}`)
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -111,22 +125,27 @@ func TestDoErr(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.True(err != nil)
-	is.Equal(err.Error(), "graphql: Something went wrong")
+
+	req := NewRequest(`mutation test()`)
+	err := client.Run(ctx, req, &responseData)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), "graphql: Something went wrong")
 }
 
 func TestDoServerErr(t *testing.T) {
-	is := is.New(t)
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		is.Equal(r.Method, http.MethodPost)
-		query := r.FormValue("query")
-		is.Equal(query, `query {}`)
+		require.Equal(t, r.Method, http.MethodPost)
+		operations := r.FormValue("operations")
+		require.Equal(t, operations, `{"operationName":"test","variables":null,"query":"mutation test()"}`)
 		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, `Internal Server Error`)
+
+		_, err := io.WriteString(w, `Internal Server Error`)
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -135,25 +154,29 @@ func TestDoServerErr(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
+
+	req := NewRequest(`mutation test()`)
+	err := client.Run(ctx, req, &responseData)
+	require.Equal(t, err.Error(), "graphql: server returned a non-200 status code: 500")
 }
 
 func TestDoBadRequestErr(t *testing.T) {
-	is := is.New(t)
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		is.Equal(r.Method, http.MethodPost)
-		query := r.FormValue("query")
-		is.Equal(query, `query {}`)
+		require.Equal(t, r.Method, http.MethodPost)
+		operations := r.FormValue("operations")
+		require.Equal(t, operations, `{"operationName":"test","variables":null,"query":"mutation test()"}`)
 		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
 			}]
 		}`)
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -162,24 +185,28 @@ func TestDoBadRequestErr(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+
+	req := NewRequest(`mutation test()`)
+	err := client.Run(ctx, req, &responseData)
+	require.Equal(t, err.Error(), "graphql: miscellaneous message as to why the the request was bad")
 }
 
 func TestDoNoResponse(t *testing.T) {
-	is := is.New(t)
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		is.Equal(r.Method, http.MethodPost)
-		query := r.FormValue("query")
-		is.Equal(query, `query {}`)
-		io.WriteString(w, `{
+		require.Equal(t, r.Method, http.MethodPost)
+		operations := r.FormValue("operations")
+		require.Equal(t, operations, `{"operationName":"test","variables":null,"query":"mutation test()"}`)
+		_, err := io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
 		}`)
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -188,74 +215,76 @@ func TestDoNoResponse(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
-	err := client.Run(ctx, &Request{q: "query {}"}, nil)
-	is.NoErr(err)
-	is.Equal(calls, 1) // calls
+
+	req := NewRequest(`mutation test()`)
+	err := client.Run(ctx, req, nil)
+	require.NoError(t, err)
+	require.Equal(t, calls, 1) // calls
 }
 
 func TestQuery(t *testing.T) {
-	is := is.New(t)
-
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		query := r.FormValue("query")
-		is.Equal(query, "query {}")
-		is.Equal(r.FormValue("variables"), `{"username":"matryer"}`+"\n")
+		operations := r.FormValue("operations")
+		require.Equal(t, operations, `{"operationName":"test","variables":{"username":"matryer"},"query":"mutation test()"}`)
 		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
-		is.NoErr(err)
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	client := NewClient(srv.URL, UseMultipartForm())
 
-	req := NewRequest("query {}")
+	req := NewRequest("mutation test()")
 	req.Var("username", "matryer")
 
 	// check variables
-	is.True(req != nil)
-	is.Equal(req.vars["username"], "matryer")
+	require.True(t, req != nil)
+	require.Equal(t, req.vars["username"], "matryer")
 
 	var resp struct {
 		Value string
 	}
+
 	err := client.Run(ctx, req, &resp)
-	is.NoErr(err)
-	is.Equal(calls, 1)
+	require.NoError(t, err)
+	require.Equal(t, calls, 1)
 
-	is.Equal(resp.Value, "some data")
-
+	require.Equal(t, resp.Value, "some data")
 }
 
 func TestFile(t *testing.T) {
-	is := is.New(t)
-
 	var calls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		file, header, err := r.FormFile("file")
-		is.NoErr(err)
-		defer file.Close()
-		is.Equal(header.Filename, "filename.txt")
+		file, header, err := r.FormFile("1")
+		require.NoError(t, err)
 
+		require.Equal(t, header.Filename, "filename.txt")
 		b, err := ioutil.ReadAll(file)
-		is.NoErr(err)
-		is.Equal(string(b), `This is a file`)
+		require.NoError(t, err)
+		require.Equal(t, string(b), `This is a file`)
 
 		_, err = io.WriteString(w, `{"data":{"value":"some data"}}`)
-		is.NoErr(err)
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+
 	client := NewClient(srv.URL, UseMultipartForm())
+	req := NewRequest(`mutation test($input: testInput!) {test(input: $input) {}}`)
 	f := strings.NewReader(`This is a file`)
-	req := NewRequest("query {}")
-	req.File("file", "filename.txt", f)
+	req.File("variables.input.file", "filename.txt", f)
+
 	err := client.Run(ctx, req, nil)
-	is.NoErr(err)
+	require.NoError(t, err)
 }
 
 type roundTripperFunc func(req *http.Request) (*http.Response, error)
