@@ -30,7 +30,7 @@ func TestWithClient(t *testing.T) {
 	client := NewClient("", WithHTTPClient(testClient), UseMultipartForm())
 
 	req := NewRequest(``)
-	client.Run(ctx, req, nil)
+	client.Run(ctx, req, nil, nil)
 
 	is.Equal(calls, 1) // calls
 }
@@ -57,7 +57,7 @@ func TestDoUseMultipartForm(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, nil)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
@@ -84,7 +84,7 @@ func TestImmediatelyCloseReqBody(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, nil)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
@@ -112,7 +112,7 @@ func TestDoErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, nil)
 	is.True(err != nil)
 	is.Equal(err.Error(), "graphql: Something went wrong")
 }
@@ -136,7 +136,7 @@ func TestDoServerErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, nil)
 	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
 }
 
@@ -163,7 +163,7 @@ func TestDoBadRequestErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, nil)
 	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
 }
 
@@ -188,7 +188,7 @@ func TestDoNoResponse(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
-	err := client.Run(ctx, &Request{q: "query {}"}, nil)
+	err := client.Run(ctx, &Request{q: "query {}"}, nil, nil)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 }
@@ -221,7 +221,7 @@ func TestQuery(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(ctx, req, &resp, nil)
 	is.NoErr(err)
 	is.Equal(calls, 1)
 
@@ -254,7 +254,7 @@ func TestFile(t *testing.T) {
 	f := strings.NewReader(`This is a file`)
 	req := NewRequest("query {}")
 	req.File("file", "filename.txt", f)
-	err := client.Run(ctx, req, nil)
+	err := client.Run(ctx, req, nil, nil)
 	is.NoErr(err)
 }
 

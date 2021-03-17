@@ -35,7 +35,8 @@ func TestDoJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	var respErr map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, &respErr)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
@@ -61,7 +62,8 @@ func TestDoJSONServerError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	var respErr map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, respErr)
 	is.Equal(calls, 1) // calls
 	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
 }
@@ -90,9 +92,10 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	var respErr map[string]interface{}
+	err := client.Run(ctx, &Request{q: "query {}"}, &responseData, respErr)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 400")
 }
 
 func TestQueryJSON(t *testing.T) {
@@ -123,7 +126,8 @@ func TestQueryJSON(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err := client.Run(ctx, req, &resp)
+	var respErr map[string]interface{}
+	err := client.Run(ctx, req, &resp, &respErr)
 	is.NoErr(err)
 	is.Equal(calls, 1)
 
@@ -153,7 +157,8 @@ func TestHeader(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err := client.Run(ctx, req, &resp)
+	var respErr map[string]interface{}
+	err := client.Run(ctx, req, &resp, &respErr)
 	is.NoErr(err)
 	is.Equal(calls, 1)
 

@@ -81,7 +81,7 @@ func (c *Client) logf(format string, args ...interface{}) {
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
 // will be returned.
-func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
+func (c *Client) Run(ctx context.Context, req *Request, resp, errorResp interface{}) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -93,10 +93,10 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 	if c.useMultipartForm {
 		return c.runWithPostFields(ctx, req, resp)
 	}
-	return c.runWithJSON(ctx, req, resp)
+	return c.runWithJSON(ctx, req, resp, errorResp)
 }
 
-func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}) error {
+func (c *Client) runWithJSON(ctx context.Context, req *Request, resp, errorResp interface{}) error {
 	var requestBody bytes.Buffer
 	requestBodyObj := struct {
 		Query     string                 `json:"query"`
@@ -137,12 +137,14 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "reading body")
 	}
 	c.logf("<< %s", buf.String())
+	if res.StatusCode != http.StatusOK {
+		json.Unmarshal(buf.Bytes(), &errorResp)
+		return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)
+	}
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
-		if res.StatusCode != http.StatusOK {
-			return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.StatusCode)
-		}
 		return errors.Wrap(err, "decoding response")
 	}
+
 	if len(gr.Errors) > 0 {
 		// return first error
 		return gr.Errors[0]
