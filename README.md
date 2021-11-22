@@ -1,3 +1,7 @@
+**NOTE**: Used by https://github.com/konstellation-io/kli
+
+# GraphQL client
+
 Low-level GraphQL client for Go.
 
 * Simple, familiar API
