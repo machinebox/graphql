@@ -84,16 +84,16 @@ func (c *Client) logf(format string, args ...interface{}) {
 func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return newGraphQLError(ctx.Err())
 	default:
 	}
 	if len(req.files) > 0 && !c.useMultipartForm {
-		return errors.New("cannot send files with PostFields option")
+		return newGraphQLError(errors.New("cannot send files with PostFields option"))
 	}
 	if c.useMultipartForm {
-		return c.runWithPostFields(ctx, req, resp)
+		return newGraphQLError(c.runWithPostFields(ctx, req, resp))
 	}
-	return c.runWithJSON(ctx, req, resp)
+	return newGraphQLError(c.runWithJSON(ctx, req, resp))
 }
 
 func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}) error {
@@ -145,7 +145,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	if len(gr.Errors) > 0 {
 		// return first error
-		return gr.Errors[0]
+		return &gr.Errors[0]
 	}
 	return nil
 }
@@ -216,7 +216,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	}
 	if len(gr.Errors) > 0 {
 		// return first error
-		return gr.Errors[0]
+		return &gr.Errors[0]
 	}
 	return nil
 }
@@ -249,17 +249,9 @@ func ImmediatelyCloseReqBody() ClientOption {
 // modify the behaviour of the Client.
 type ClientOption func(*Client)
 
-type graphErr struct {
-	Message string
-}
-
-func (e graphErr) Error() string {
-	return "graphql: " + e.Message
-}
-
 type graphResponse struct {
 	Data   interface{}
-	Errors []graphErr
+	Errors []GraphQLError
 }
 
 // Request is a GraphQL request.
@@ -321,4 +313,90 @@ type File struct {
 	Field string
 	Name  string
 	R     io.Reader
+}
+
+type GraphQLError struct {
+	err        error
+	Message    string
+	Path       []string
+	Extensions GraphQLErrorExtensions
+}
+
+type GraphQLErrorExtensions struct {
+	Code        string
+	ServiceName string
+	Query       string
+	Variables   map[string]string
+}
+
+func newGraphQLError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if gqlErr, ok := err.(*GraphQLError); ok {
+		return gqlErr
+	}
+
+	return &GraphQLError{
+		err: err,
+	}
+}
+
+func (gqlErr *GraphQLError) Error() string {
+	if gqlErr.err != nil {
+		return gqlErr.err.Error()
+	} else {
+		return "graphql: " + gqlErr.Message
+	}
+}
+
+func IsClientError(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.err != nil
+}
+
+func IsUnauthorized(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "UNAUTHORIZED"
+}
+
+func IsInvalid(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "INVALID"
+}
+
+func IsUnprocessable(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "UNPROCESSABLE"
+}
+
+func IsInvalidArguments(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "INVALID_ARGUMENTS"
+}
+
+func IsMaintenance(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "MAINTENANCE"
+}
+
+func IsServerError(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "SERVER_ERROR"
+}
+
+func IsInternalServerError(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "INTERNAL_SERVER_ERROR"
+}
+
+func IsServiceUnavailable(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "SERVICE_UNAVAILABLE"
+}
+
+func IsNotFound(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.Extensions.Code == "NOT_FOUND"
 }
