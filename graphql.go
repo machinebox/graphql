@@ -353,7 +353,12 @@ func (gqlErr *GraphQLError) Error() string {
 
 func IsClientError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
-	return ok && gqlErr.err != nil
+	return ok && gqlErr.err != nil && len(gqlErr.Extensions.Code) == 0
+}
+
+func IsGraphQLError(err error) bool {
+	gqlErr, ok := err.(*GraphQLError)
+	return ok && gqlErr.err == nil && len(gqlErr.Extensions.Code) > 0
 }
 
 func IsUnauthorized(err error) bool {
