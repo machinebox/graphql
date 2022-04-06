@@ -114,7 +114,7 @@ func TestDoErr(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.True(err != nil)
-	is.Equal(err.Error(), "graphql: Something went wrong")
+	is.Equal(err.Error(), "Something went wrong")
 }
 
 func TestDoServerErr(t *testing.T) {
@@ -137,7 +137,7 @@ func TestDoServerErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
+	is.Equal(err.Error(), "server returned a non-200 status code: 500")
 }
 
 func TestDoBadRequestErr(t *testing.T) {
@@ -164,7 +164,7 @@ func TestDoBadRequestErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "miscellaneous message as to why the the request was bad")
 }
 
 func TestDoNoResponse(t *testing.T) {
