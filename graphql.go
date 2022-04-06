@@ -361,27 +361,27 @@ func IsGraphQLError(err error) bool {
 	return ok && gqlErr.err == nil && len(gqlErr.Extensions.Code) > 0
 }
 
-func IsUnauthorized(err error) bool {
+func IsUnauthorizedError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
 	return ok && gqlErr.Extensions.Code == "UNAUTHORIZED"
 }
 
-func IsInvalid(err error) bool {
+func IsInvalidError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
 	return ok && gqlErr.Extensions.Code == "INVALID"
 }
 
-func IsUnprocessable(err error) bool {
+func IsUnprocessableError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
 	return ok && gqlErr.Extensions.Code == "UNPROCESSABLE"
 }
 
-func IsInvalidArguments(err error) bool {
+func IsInvalidArgumentsError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
 	return ok && gqlErr.Extensions.Code == "INVALID_ARGUMENTS"
 }
 
-func IsMaintenance(err error) bool {
+func IsMaintenanceError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
 	return ok && gqlErr.Extensions.Code == "MAINTENANCE"
 }
@@ -396,12 +396,12 @@ func IsInternalServerError(err error) bool {
 	return ok && gqlErr.Extensions.Code == "INTERNAL_SERVER_ERROR"
 }
 
-func IsServiceUnavailable(err error) bool {
+func IsServiceUnavailableError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
 	return ok && gqlErr.Extensions.Code == "SERVICE_UNAVAILABLE"
 }
 
-func IsNotFound(err error) bool {
+func IsNotFoundError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
 	return ok && gqlErr.Extensions.Code == "NOT_FOUND"
 }
