@@ -11,8 +11,8 @@ jobs:
     - uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go-version }}
-    - run: go get golang.org/x/lint/golint
     - uses: actions/checkout@v3
+    - run: go get golang.org/x/lint/golint
     - run: go vet ./...
     - run: golint ./...
     - run: go test ./...
