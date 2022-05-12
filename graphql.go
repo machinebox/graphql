@@ -316,7 +316,7 @@ type File struct {
 }
 
 type GraphQLError struct {
-	err        error
+	Err        error
 	Message    string
 	Path       []string
 	Extensions GraphQLErrorExtensions
@@ -339,13 +339,13 @@ func newGraphQLError(err error) error {
 	}
 
 	return &GraphQLError{
-		err: err,
+		Err: err,
 	}
 }
 
 func (gqlErr *GraphQLError) Error() string {
-	if gqlErr.err != nil {
-		return gqlErr.err.Error()
+	if gqlErr.Err != nil {
+		return gqlErr.Err.Error()
 	} else {
 		return gqlErr.Message
 	}
@@ -353,12 +353,12 @@ func (gqlErr *GraphQLError) Error() string {
 
 func IsClientError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
-	return ok && gqlErr.err != nil && len(gqlErr.Extensions.Code) == 0
+	return ok && gqlErr.Err != nil && len(gqlErr.Extensions.Code) == 0
 }
 
 func IsGraphQLError(err error) bool {
 	gqlErr, ok := err.(*GraphQLError)
-	return ok && gqlErr.err == nil && len(gqlErr.Extensions.Code) > 0
+	return ok && gqlErr.Err == nil && len(gqlErr.Extensions.Code) > 0
 }
 
 func IsUnauthorizedError(err error) bool {
