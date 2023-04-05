@@ -45,7 +45,7 @@ import (
 // Client is a client for interacting with a GraphQL API.
 type Client struct {
 	endpoint         string
-	httpClient       *http.Client
+	httpClient       HTTPClient
 	useMultipartForm bool
 
 	// closeReq will close the request body immediately allowing for reuse of client
@@ -221,10 +221,14 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	return nil
 }
 
+type HTTPClient interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
 // WithHTTPClient specifies the underlying http.Client to use when
 // making requests.
 //  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
-func WithHTTPClient(httpclient *http.Client) ClientOption {
+func WithHTTPClient(httpclient HTTPClient) ClientOption {
 	return func(client *Client) {
 		client.httpClient = httpclient
 	}
