@@ -17,13 +17,11 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		return err
 	}
 
-	params := map[string]string{
-		"operations": string(operations),
-		"map":        req.FileMap(),
-	}
-
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
+
+	_ = writer.WriteField("operations", string(operations))
+	_ = writer.WriteField("map", req.FileMap())
 
 	for i, file := range req.files {
 		key := fmt.Sprintf("%d", i+1)
@@ -36,10 +34,6 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		if _, err := io.Copy(part, file.R); err != nil {
 			return errors.Wrap(err, "preparing file")
 		}
-	}
-
-	for key, val := range params {
-		_ = writer.WriteField(key, val)
 	}
 
 	err = writer.Close()
