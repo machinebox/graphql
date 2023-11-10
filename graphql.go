@@ -1,33 +1,34 @@
 // Package graphql provides a low level GraphQL client.
 //
-//  // create a client (safe to share across requests)
-//  client := graphql.NewClient("https://machinebox.io/graphql")
+//	// create a client (safe to share across requests)
+//	client := graphql.NewClient("https://machinebox.io/graphql")
 //
-//  // make a request
-//  req := graphql.NewRequest(`
-//      query ($key: String!) {
-//          items (id:$key) {
-//              field1
-//              field2
-//              field3
-//          }
-//      }
-//  `)
+//	// make a request
+//	req := graphql.NewRequest(`
+//	    query ($key: String!) {
+//	        items (id:$key) {
+//	            field1
+//	            field2
+//	            field3
+//	        }
+//	    }
+//	`)
 //
-//  // set any variables
-//  req.Var("key", "value")
+//	// set any variables
+//	req.Var("key", "value")
 //
-//  // run it and capture the response
-//  var respData ResponseStruct
-//  if err := client.Run(ctx, req, &respData); err != nil {
-//      log.Fatal(err)
-//  }
+//	// run it and capture the response
+//	var respData ResponseStruct
+//	if err := client.Run(ctx, req, &respData); err != nil {
+//	    log.Fatal(err)
+//	}
 //
-// Specify client
+// # Specify client
 //
 // To specify your own http.Client, use the WithHTTPClient option:
-//  httpclient := &http.Client{}
-//  client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
+//
+//	httpclient := &http.Client{}
+//	client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
 package graphql
 
 import (
@@ -103,7 +104,8 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 
 // WithHTTPClient specifies the underlying http.Client to use when
 // making requests.
-//  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
+//
+//	NewClient(endpoint, WithHTTPClient(specificHTTPClient))
 func WithHTTPClient(httpclient *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = httpclient
@@ -160,6 +162,10 @@ func (c *Client) Do(ctx context.Context, r *http.Request, gr *graphResponse) err
 	}
 
 	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned a non-200 status code: %v", res.Status) //nolint:goerr113
+	}
 
 	var buf bytes.Buffer
 
