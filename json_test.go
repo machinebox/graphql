@@ -75,7 +75,7 @@ func TestDoJSONServerError(t *testing.T) {
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
+	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500 Internal Server Error")
 }
 
 func TestDoJSONBadRequestErr(t *testing.T) {
@@ -111,7 +111,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 400 Bad Request")
 }
 
 func TestQueryJSON(t *testing.T) {

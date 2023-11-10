@@ -163,8 +163,8 @@ func (c *Client) Do(ctx context.Context, r *http.Request, gr *graphResponse) err
 
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned a non-200 status code: %v", res.Status) //nolint:goerr113
+	if res.StatusCode != http.StatusOK && res.StatusCode != 0 {
+		return fmt.Errorf("graphql: server returned a non-200 status code: %v", res.Status) //nolint:goerr113
 	}
 
 	var buf bytes.Buffer

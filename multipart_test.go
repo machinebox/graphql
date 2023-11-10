@@ -159,7 +159,7 @@ func TestDoServerErr(t *testing.T) {
 
 	req := NewRequest(`mutation test()`)
 	err := client.Run(ctx, req, &responseData)
-	require.Equal(t, err.Error(), "graphql: server returned a non-200 status code: 500")
+	require.Equal(t, err.Error(), "graphql: server returned a non-200 status code: 500 Internal Server Error")
 }
 
 func TestDoBadRequestErr(t *testing.T) {
@@ -190,7 +190,7 @@ func TestDoBadRequestErr(t *testing.T) {
 
 	req := NewRequest(`mutation test()`)
 	err := client.Run(ctx, req, &responseData)
-	require.Equal(t, err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	require.Equal(t, err.Error(), "graphql: server returned a non-200 status code: 400 Bad Request")
 }
 
 func TestDoNoResponse(t *testing.T) {
