@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -44,7 +43,7 @@ func TestDoJSONServerError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		assert.Equal(t, r.Method, http.MethodPost)
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, string(b), `{"query":"query {}","variables":null}`+"\n")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -95,7 +94,7 @@ func TestQueryJSON(t *testing.T) {
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, `{"query":"query {}","variables":{"username":"matryer"}}`+"\n", string(b))
 		_, err = io.WriteString(w, `{"data":{"value":"some data"}}`)
