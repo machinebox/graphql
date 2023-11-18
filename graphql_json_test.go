@@ -16,10 +16,10 @@ func TestDoJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		assert.Equal(t, r.Method, http.MethodPost)
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, string(b), `{"query":"query {}","variables":null}`+"\n")
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
@@ -48,7 +48,7 @@ func TestDoJSONServerError(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(b), `{"query":"query {}","variables":null}`+"\n")
 		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, `Internal Server Error`)
+		_, _ = io.WriteString(w, `Internal Server Error`)
 	}))
 	defer srv.Close()
 
@@ -68,11 +68,11 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		assert.Equal(t, http.MethodPost, r.Method)
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, `{"query":"query {}","variables":null}`+"\n", string(b))
 		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
 			}]
@@ -88,7 +88,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	assert.Equal(t, calls, 1) // calls
-	assert.Equal(t,"graphql: miscellaneous message as to why the the request was bad", err.Error())
+	assert.Equal(t, "graphql: miscellaneous message as to why the the request was bad", err.Error())
 }
 
 func TestQueryJSON(t *testing.T) {
@@ -97,7 +97,7 @@ func TestQueryJSON(t *testing.T) {
 		calls++
 		b, err := ioutil.ReadAll(r.Body)
 		assert.NoError(t, err)
-		assert.Equal(t,  `{"query":"query {}","variables":{"username":"matryer"}}`+"\n", string(b))
+		assert.Equal(t, `{"query":"query {}","variables":{"username":"matryer"}}`+"\n", string(b))
 		_, err = io.WriteString(w, `{"data":{"value":"some data"}}`)
 		assert.NoError(t, err)
 	}))
@@ -112,7 +112,7 @@ func TestQueryJSON(t *testing.T) {
 
 	// check variables
 	assert.NotNil(t, req)
-	assert.Equal(t,  "matryer", req.vars["username"])
+	assert.Equal(t, "matryer", req.vars["username"])
 
 	var resp struct {
 		Value string
@@ -128,7 +128,7 @@ func TestHeader(t *testing.T) {
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		assert.Equal(t,"123", r.Header.Get("X-Custom-Header"))
+		assert.Equal(t, "123", r.Header.Get("X-Custom-Header"))
 
 		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
 		assert.NoError(t, err)
@@ -149,5 +149,5 @@ func TestHeader(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, calls, 1)
 
-	assert.Equal(t,"some data", resp.Value)
+	assert.Equal(t, "some data", resp.Value)
 }

@@ -13,7 +13,7 @@ import (
 )
 
 func TestWithClient(t *testing.T) {
-	
+
 	var calls int
 	testClient := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
@@ -29,20 +29,20 @@ func TestWithClient(t *testing.T) {
 	client := NewClient("", WithHTTPClient(testClient), UseMultipartForm())
 
 	req := NewRequest(``)
-	client.Run(ctx, req, nil)
+	_ = client.Run(ctx, req, nil)
 
 	assert.Equal(t, calls, 1) // calls
 }
 
 func TestDoUseMultipartForm(t *testing.T) {
-	
+
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		assert.Equal(t, r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		assert.Equal(t, query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
@@ -62,14 +62,14 @@ func TestDoUseMultipartForm(t *testing.T) {
 	assert.Equal(t, responseData["something"], "yes")
 }
 func TestImmediatelyCloseReqBody(t *testing.T) {
-	
+
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		assert.Equal(t, r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		assert.Equal(t, query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
@@ -90,14 +90,14 @@ func TestImmediatelyCloseReqBody(t *testing.T) {
 }
 
 func TestDoErr(t *testing.T) {
-	
+
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		assert.Equal(t, r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		assert.Equal(t, query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "Something went wrong"
 			}]
@@ -117,7 +117,7 @@ func TestDoErr(t *testing.T) {
 }
 
 func TestDoServerErr(t *testing.T) {
-	
+
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -125,7 +125,7 @@ func TestDoServerErr(t *testing.T) {
 		query := r.FormValue("query")
 		assert.Equal(t, query, `query {}`)
 		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, `Internal Server Error`)
+		_, _ = io.WriteString(w, `Internal Server Error`)
 	}))
 	defer srv.Close()
 
@@ -140,7 +140,7 @@ func TestDoServerErr(t *testing.T) {
 }
 
 func TestDoBadRequestErr(t *testing.T) {
-	
+
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -148,7 +148,7 @@ func TestDoBadRequestErr(t *testing.T) {
 		query := r.FormValue("query")
 		assert.Equal(t, query, `query {}`)
 		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
 			}]
@@ -167,14 +167,14 @@ func TestDoBadRequestErr(t *testing.T) {
 }
 
 func TestDoNoResponse(t *testing.T) {
-	
+
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		assert.Equal(t, r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		assert.Equal(t, query, `query {}`)
-		io.WriteString(w, `{
+		_, _ = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
@@ -227,7 +227,6 @@ func TestQuery(t *testing.T) {
 }
 
 func TestFile(t *testing.T) {
-	
 
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
