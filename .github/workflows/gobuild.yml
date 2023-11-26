@@ -1,0 +1,71 @@
+name: build
+
+on:
+  pull_request:
+    branch:
+      - master
+
+jobs:
+  review:
+    name: Review code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Go base on go.mod
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: ${{ github.workspace }}/go.mod
+        id: go
+
+      - name: Check suspicious constructs (vet)
+        run: |
+          go vet ./...
+
+      - name: Staticcheck
+        uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          install-go: false
+          checks: all, -ST1000, -ST1003, -ST1005
+
+  security:
+    name: Review security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Go base on go.mod
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: ${{ github.workspace }}/go.mod
+        id: go
+
+      - name: Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: -exclude=G505 ./...
+
+      - name: WriteGoList for dependency check tool
+        run: go list -json -test ./... > go.list
+
+      - name: Dependency vulnerability check
+        uses: sonatype-nexus-community/nancy-github-action@main
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Go base on go.mod
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: ${{ github.workspace }}/go.mod
+        id: go
+
+      - name: test
+        run: |
+          go test -v ./... -cover -coverprofile=cover.out
