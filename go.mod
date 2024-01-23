@@ -1,4 +1,4 @@
-module graphql
+module github.com/joaopandolfi/graphql
 
 go 1.20
 
