@@ -1,37 +1,39 @@
 // Package graphql provides a low level GraphQL client.
 //
-//  // create a client (safe to share across requests)
-//  client := graphql.NewClient("https://machinebox.io/graphql")
+//	// create a client (safe to share across requests)
+//	client := graphql.NewClient("https://machinebox.io/graphql")
 //
-//  // make a request
-//  req := graphql.NewRequest(`
-//      query ($key: String!) {
-//          items (id:$key) {
-//              field1
-//              field2
-//              field3
-//          }
-//      }
-//  `)
+//	// make a request
+//	req := graphql.NewRequest(`
+//	    query ($key: String!) {
+//	        items (id:$key) {
+//	            field1
+//	            field2
+//	            field3
+//	        }
+//	    }
+//	`)
 //
-//  // set any variables
-//  req.Var("key", "value")
+//	// set any variables
+//	req.Var("key", "value")
 //
-//  // run it and capture the response
-//  var respData ResponseStruct
-//  if err := client.Run(ctx, req, &respData); err != nil {
-//      log.Fatal(err)
-//  }
+//	// run it and capture the response
+//	var respData ResponseStruct
+//	if err := client.Run(ctx, req, &respData); err != nil {
+//	    log.Fatal(err)
+//	}
 //
-// Specify client
+// # Specify client
 //
 // To specify your own http.Client, use the WithHTTPClient option:
-//  httpclient := &http.Client{}
-//  client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
+//
+//	httpclient := &http.Client{}
+//	client := graphql.NewClient("https://machinebox.io/graphql", graphql.WithHTTPClient(httpclient))
 package graphql
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -47,6 +49,7 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
+	useGzip          bool
 
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
@@ -113,6 +116,17 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	gr := &graphResponse{
 		Data: resp,
 	}
+
+	if c.useGzip {
+		var compressedData bytes.Buffer
+		gzipBuff := gzip.NewWriter(&compressedData)
+		if _, err := gzipBuff.Write(requestBody.Bytes()); err != nil {
+			return errors.Wrap(err, "gzipping body")
+		}
+		gzipBuff.Close()
+		requestBody = compressedData
+	}
+
 	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
 	if err != nil {
 		return err
@@ -120,6 +134,11 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	r.Close = c.closeReq
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
+
+	if c.useGzip {
+		r.Header.Set("Content-Encoding", "gzip")
+	}
+
 	for key, values := range req.Header {
 		for _, value := range values {
 			r.Header.Add(key, value)
@@ -133,9 +152,25 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	defer res.Body.Close()
 	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, res.Body); err != nil {
-		return errors.Wrap(err, "reading body")
+
+	if res.Header.Get("Content-Encoding") != "gzip" {
+		if _, err := io.Copy(&buf, res.Body); err != nil {
+			return errors.Wrap(err, "reading body")
+		}
+	} else {
+		r, err := gzip.NewReader(res.Body)
+		if err != nil {
+			return errors.Wrap(err, "reading gzip body")
+		}
+		var resB bytes.Buffer
+		_, err = resB.ReadFrom(r)
+		if err != nil {
+			return errors.Wrap(err, "reading gzip bytes")
+		}
+		r.Close()
+		buf = resB
 	}
+
 	c.logf("<< %s", buf.String())
 	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
 		if res.StatusCode != http.StatusOK {
@@ -223,7 +258,8 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 
 // WithHTTPClient specifies the underlying http.Client to use when
 // making requests.
-//  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
+//
+//	NewClient(endpoint, WithHTTPClient(specificHTTPClient))
 func WithHTTPClient(httpclient *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = httpclient
@@ -238,7 +274,14 @@ func UseMultipartForm() ClientOption {
 	}
 }
 
-//ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
+// UseGzip to perform requiests and reduce the payload
+func UseGzip() ClientOption {
+	return func(client *Client) {
+		client.useGzip = true
+	}
+}
+
+// ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
 func ImmediatelyCloseReqBody() ClientOption {
 	return func(client *Client) {
 		client.closeReq = true
