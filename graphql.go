@@ -134,6 +134,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	r.Close = c.closeReq
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
+	r.Header.Set("Accept-Enconding", "gzip")
 
 	if c.useGzip {
 		r.Header.Set("Content-Encoding", "gzip")
