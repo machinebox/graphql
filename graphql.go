@@ -49,7 +49,8 @@ type Client struct {
 	endpoint         string
 	httpClient       *http.Client
 	useMultipartForm bool
-	useGzip          bool
+	sendGzip         bool
+	receiveGzip      bool
 
 	// closeReq will close the request body immediately allowing for reuse of client
 	closeReq bool
@@ -116,8 +117,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	gr := &graphResponse{
 		Data: resp,
 	}
-
-	if c.useGzip {
+	if c.sendGzip {
 		var compressedData bytes.Buffer
 		gzipBuff := gzip.NewWriter(&compressedData)
 		if _, err := gzipBuff.Write(requestBody.Bytes()); err != nil {
@@ -133,13 +133,16 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	r.Close = c.closeReq
 
-	if c.useGzip {
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
+
+	if c.sendGzip {
 		r.Header.Set("Content-Encoding", "gzip")
-		r.Header.Set("Accept-Enconding", "gzip")
-		r.Header.Set("Accept", "gzip")
-	} else {
-		r.Header.Set("Content-Type", "application/json; charset=utf-8")
-		r.Header.Set("Accept", "application/json; charset=utf-8")
+	}
+
+	if c.receiveGzip {
+		r.Header.Set("Accept-Encoding", "deflate, gzip")
+		r.Header.Set("Accept", "*/*")
 	}
 
 	for key, values := range req.Header {
@@ -153,10 +156,11 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	if err != nil {
 		return err
 	}
+
 	defer res.Body.Close()
 	var buf bytes.Buffer
 
-	if !c.useGzip {
+	if res.Header.Get("Content-Encoding") != "gzip" {
 		if _, err := io.Copy(&buf, res.Body); err != nil {
 			return errors.Wrap(err, "reading body")
 		}
@@ -277,10 +281,17 @@ func UseMultipartForm() ClientOption {
 	}
 }
 
-// UseGzip to perform requiests and reduce the payload
-func UseGzip() ClientOption {
+// ReceiveGzip to perform requiests parsing payload response in gzip and reduce the payload
+func ReceiveGzip() ClientOption {
 	return func(client *Client) {
-		client.useGzip = true
+		client.receiveGzip = true
+	}
+}
+
+// SendGzip to perform requiests sending body in gzip and reduce the payload
+func SendGzip() ClientOption {
+	return func(client *Client) {
+		client.sendGzip = true
 	}
 }
 

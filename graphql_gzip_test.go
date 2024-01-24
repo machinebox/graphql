@@ -42,7 +42,7 @@ func TestDoJSONGzipServerError(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL, UseGzip())
+	client := NewClient(srv.URL, SendGzip(), ReceiveGzip())
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
