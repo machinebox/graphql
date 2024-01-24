@@ -153,7 +153,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	defer res.Body.Close()
 	var buf bytes.Buffer
 
-	if res.Header.Get("Content-Encoding") != "gzip" {
+	if !c.useGzip {
 		if _, err := io.Copy(&buf, res.Body); err != nil {
 			return errors.Wrap(err, "reading body")
 		}
